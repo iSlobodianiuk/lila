@@ -10,6 +10,8 @@ type Props = {
 export function Cell({ cell, isActive }: Props) {
   const isGoal = cell.id === GOAL_CELL;
   const isEntry = cell.id === 6;
+  const hasArrow = cell.arrowTo != null;
+  const hasSnake = cell.snakeTo != null;
 
   return (
     <div
@@ -46,6 +48,24 @@ export function Cell({ cell, isActive }: Props) {
           ◉
         </span>
       )}
+      {hasArrow && (
+        <span
+          aria-hidden
+          className="absolute left-1.5 bottom-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-emerald-700"
+          title={`Стріла до клітинки ${cell.arrowTo}`}
+        >
+          ↑ {cell.arrowTo}
+        </span>
+      )}
+      {hasSnake && (
+        <span
+          aria-hidden
+          className="absolute right-1.5 bottom-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-rose-700"
+          title={`Змія до клітинки ${cell.snakeTo}`}
+        >
+          ↓ {cell.snakeTo}
+        </span>
+      )}
 
       <span className="mt-2.5 text-[10px] leading-tight font-medium text-stone-700 line-clamp-2 sm:text-[11px]">
         {cell.name}
@@ -69,6 +89,16 @@ export function Cell({ cell, isActive }: Props) {
         </div>
         <div className="mt-0.5 text-[10px] italic text-stone-300">{cell.original}</div>
         <div className="mt-1 text-stone-200/90">{cell.description}</div>
+        {hasArrow && (
+          <div className="mt-1 text-[10px] font-medium text-emerald-300">
+            Стріла до: {cell.arrowTo}
+          </div>
+        )}
+        {hasSnake && (
+          <div className="mt-1 text-[10px] font-medium text-rose-300">
+            Змія до: {cell.snakeTo}
+          </div>
+        )}
       </div>
     </div>
   );
