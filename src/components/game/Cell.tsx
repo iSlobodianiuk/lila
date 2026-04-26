@@ -16,8 +16,8 @@ export function Cell({ cell, isActive }: Props) {
   return (
     <div
       className={[
-        "group relative aspect-square rounded-2xl border backdrop-blur-md transition-all duration-500",
-        "flex flex-col items-center justify-center gap-1 px-1.5 py-1.5 text-center",
+        "group relative aspect-square rounded-xl border backdrop-blur-md transition-all duration-500 sm:rounded-2xl",
+        "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
           ? "border-amber-400/70 bg-white/85 shadow-[0_8px_28px_-8px_rgba(212,165,116,0.55)] ring-2 ring-amber-400/60 scale-[1.04]"
           : "border-white/40 bg-white/55 hover:bg-white/75 hover:border-white/70",
@@ -51,7 +51,7 @@ export function Cell({ cell, isActive }: Props) {
       {hasArrow && (
         <span
           aria-hidden
-          className="absolute left-1.5 bottom-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-emerald-700"
+          className="absolute left-1 bottom-1 rounded-full bg-emerald-100 px-1 py-0.5 text-[8px] font-semibold leading-none text-emerald-700 sm:left-1.5 sm:px-1.5 sm:text-[9px]"
           title={`Стріла до клітинки ${cell.arrowTo}`}
         >
           ↑ {cell.arrowTo}
@@ -60,17 +60,17 @@ export function Cell({ cell, isActive }: Props) {
       {hasSnake && (
         <span
           aria-hidden
-          className="absolute right-1.5 bottom-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-rose-700"
+          className="absolute right-1 bottom-1 rounded-full bg-rose-100 px-1 py-0.5 text-[8px] font-semibold leading-none text-rose-700 sm:right-1.5 sm:px-1.5 sm:text-[9px]"
           title={`Змія до клітинки ${cell.snakeTo}`}
         >
           ↓ {cell.snakeTo}
         </span>
       )}
 
-      <span className="mt-2.5 text-[10px] leading-tight font-medium text-stone-700 line-clamp-2 sm:text-[11px]">
+      <span className="mt-2 text-[9px] leading-tight font-medium text-stone-700 line-clamp-1 sm:mt-2.5 sm:text-[11px] sm:line-clamp-2">
         {cell.name}
       </span>
-      <span className="hidden sm:block text-[9px] font-light italic text-stone-400/90 leading-none">
+      <span className="hidden md:block text-[9px] font-light italic text-stone-400/90 leading-none">
         {cell.original}
       </span>
 
@@ -82,7 +82,7 @@ export function Cell({ cell, isActive }: Props) {
 
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-48 -translate-x-1/2 rounded-xl bg-stone-900/90 px-3 py-2 text-left text-[11px] leading-snug text-stone-100 shadow-xl backdrop-blur-md group-hover:block"
+        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-48 -translate-x-1/2 rounded-xl bg-stone-900/90 px-3 py-2 text-left text-[11px] leading-snug text-stone-100 shadow-xl backdrop-blur-md md:group-hover:block"
       >
         <div className="font-semibold text-amber-200">
           {cell.id}. {cell.name}
