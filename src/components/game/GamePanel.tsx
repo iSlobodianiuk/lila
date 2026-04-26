@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { getCell } from "@/lib/board-data";
+import { CELL_DESCRIPTIONS } from "@/src/data/cellDescriptions";
 import { generateInsight } from "@/lib/insights";
 import type { GameState } from "@/lib/types";
 import { Dice } from "@/components/dice";
@@ -14,6 +15,8 @@ type Props = {
 
 export function GamePanel({ state, onRoll, onReset, onQueryChange }: Props) {
   const cell = state.position > 0 ? getCell(state.position) : null;
+  const cellNarrative =
+    state.position > 0 ? CELL_DESCRIPTIONS[state.position] : null;
   const [insight, setInsight] = useState<string | null>(null);
 
   const hint = state.hasEntered
@@ -68,9 +71,30 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange }: Props) {
         </div>
 
         {state.hasEntered && cell && (
-          <p className="rounded-2xl bg-stone-50/70 p-2.5 text-xs leading-relaxed text-stone-600 sm:p-3">
-            {cell.description}
-          </p>
+          <div className="flex flex-col gap-2.5">
+            <p className="rounded-2xl bg-stone-50/70 p-2.5 text-xs leading-relaxed text-stone-600 sm:p-3">
+              {cell.description}
+            </p>
+            {cellNarrative && cellNarrative.questions.length > 0 && (
+              <div>
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
+                  Питання для роздумів
+                </div>
+                <ul className="list-inside list-disc space-y-1 rounded-2xl border border-stone-100/80 bg-white/50 p-2.5 text-xs leading-relaxed text-stone-600 sm:p-3">
+                  {cellNarrative.questions.map((q, i) => (
+                    <li key={i} className="pl-0.5">
+                      {q}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {cellNarrative?.insight && (
+              <p className="rounded-2xl border border-amber-100/90 bg-amber-50/50 p-2.5 text-xs font-medium leading-relaxed text-amber-950/80 sm:p-3">
+                {cellNarrative.insight}
+              </p>
+            )}
+          </div>
         )}
 
         {state.hasEntered && cell && (
