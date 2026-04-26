@@ -16,7 +16,7 @@ export function Cell({ cell, isActive }: Props) {
   return (
     <div
       className={[
-        "group relative aspect-square rounded-xl border backdrop-blur-sm transition-all duration-500 sm:rounded-2xl",
+        "group relative aspect-square select-none rounded-xl border backdrop-blur-sm transition-all duration-500 sm:rounded-2xl",
         "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
           ? "z-[1] scale-[1.04] border-amber-400/80 bg-white/25 shadow-[0_8px_28px_-8px_rgba(212,165,116,0.45)] ring-2 ring-amber-400/70"
@@ -82,7 +82,7 @@ export function Cell({ cell, isActive }: Props) {
 
       <div
         role="tooltip"
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-48 -translate-x-1/2 rounded-xl bg-stone-900/90 px-3 py-2 text-left text-[11px] leading-snug text-stone-100 shadow-xl backdrop-blur-md md:group-hover:block"
+        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-48 -translate-x-1/2 rounded-xl bg-stone-900/90 px-3 py-2 text-left text-[11px] leading-snug text-stone-100 shadow-xl backdrop-blur-md group-hover:block"
       >
         <div className="font-semibold text-amber-200">
           {cell.id}. {cell.name}

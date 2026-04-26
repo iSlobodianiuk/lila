@@ -9,9 +9,9 @@ type Props = {
   position: number;
 };
 
-const MIN_SCALE = 0.75;
-const MAX_SCALE = 2;
-const SCALE_STEP = 0.12;
+const MIN_SCALE = 0.9;
+const MAX_SCALE = 2.6;
+const SCALE_STEP = 0.08;
 
 export function GameBoard({ position }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +57,31 @@ export function GameBoard({ position }: Props) {
     [clampOffset],
   );
 
+  const applyScaleAtPoint = useCallback(
+    (nextScale: number, point: { clientX: number; clientY: number }) => {
+      const boundedScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+      const viewportRect = viewportRef.current?.getBoundingClientRect();
+      if (!viewportRect) {
+        setScale(boundedScale);
+        setOffset((prev) => clampOffset(prev, boundedScale));
+        return;
+      }
+
+      const scaleRatio = boundedScale / scale;
+      const px = point.clientX - viewportRect.left - viewportRect.width / 2;
+      const py = point.clientY - viewportRect.top - viewportRect.height / 2;
+
+      const nextOffset = {
+        x: (offset.x - px) * scaleRatio + px,
+        y: (offset.y - py) * scaleRatio + py,
+      };
+
+      setScale(boundedScale);
+      setOffset(clampOffset(nextOffset, boundedScale));
+    },
+    [clampOffset, offset.x, offset.y, scale],
+  );
+
   const resetView = useCallback(() => {
     setScale(1);
     setOffset({ x: 0, y: 0 });
@@ -69,7 +94,7 @@ export function GameBoard({ position }: Props) {
   }, [clampOffset, scale]);
 
   return (
-    <section className="relative rounded-3xl border border-white/40 bg-white/40 p-2 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-5">
+    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-2 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-5">
       <div className="mb-2 flex items-center justify-between px-1 sm:mb-3 sm:px-0">
         <p className="text-[11px] text-stone-500 sm:text-xs">Жест: pinch/drag для навігації дошкою</p>
         <div className="flex items-center gap-1">
@@ -101,14 +126,20 @@ export function GameBoard({ position }: Props) {
 
       <div
         ref={viewportRef}
-        className="relative overflow-hidden rounded-2xl touch-none"
+        className={`relative min-h-0 flex-1 overflow-hidden rounded-2xl touch-none select-none ${scale > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"}`}
+        style={{ touchAction: "none" }}
         onWheel={(event) => {
           event.preventDefault();
-          const direction = event.deltaY > 0 ? -1 : 1;
-          applyScale(scale + direction * SCALE_STEP);
+          const zoomDelta = Math.max(-0.35, Math.min(0.35, -event.deltaY * 0.0015));
+          applyScaleAtPoint(scale * (1 + zoomDelta), {
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
         }}
         onPointerDown={(event) => {
           if (scale <= 1) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
           setIsDragging(true);
           panStartRef.current = {
             x: event.clientX - offset.x,
@@ -117,17 +148,24 @@ export function GameBoard({ position }: Props) {
         }}
         onPointerMove={(event) => {
           if (!isDragging || !panStartRef.current) return;
+          event.preventDefault();
           const next = {
             x: event.clientX - panStartRef.current.x,
             y: event.clientY - panStartRef.current.y,
           };
           setOffset(clampOffset(next, scale));
         }}
-        onPointerUp={() => {
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
           setIsDragging(false);
           panStartRef.current = null;
         }}
-        onPointerLeave={() => {
+        onPointerCancel={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
           setIsDragging(false);
           panStartRef.current = null;
         }}
@@ -174,7 +212,7 @@ export function GameBoard({ position }: Props) {
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             transformOrigin: "center center",
           }}
-          className="transition-transform duration-150"
+          className="mx-auto w-full max-w-[min(100%,calc((100dvh-260px)*1.125))] transition-transform duration-150"
         >
           <div
             className="relative overflow-hidden rounded-2xl"
@@ -184,7 +222,7 @@ export function GameBoard({ position }: Props) {
             }}
           >
             <LeelaboardBackground />
-            <div className="relative z-10 grid grid-cols-9 gap-0">
+            <div className="relative z-10 grid grid-cols-9 gap-[3px] sm:gap-[4px] lg:gap-[5px]">
               {BOARD_GRID.flat().map((cell) => (
                 <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
               ))}

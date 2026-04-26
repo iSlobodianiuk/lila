@@ -211,7 +211,7 @@ function HomeContent() {
   ]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-3 py-6 sm:gap-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="mx-auto flex min-h-screen min-h-0 w-full max-w-[1800px] flex-col gap-5 px-3 py-6 sm:gap-8 sm:px-6 sm:py-10 lg:px-8">
       <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <header className="flex flex-1 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
           <span className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
@@ -242,17 +242,21 @@ function HomeContent() {
           onAppendMessage={appendChatMessage}
         />
       ) : (
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-          <div className="min-w-0 max-h-[80vh] w-full overflow-auto">
-            <GameBoard position={state.position} />
+        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 lg:h-[calc(100dvh-190px)] lg:grid-cols-[7fr_3fr] lg:items-stretch lg:gap-5">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <GameBoard position={state.position} />
+            </div>
           </div>
-          <GamePanel
-            state={state}
-            onRoll={rollDice}
-            onReset={reset}
-            onQueryChange={setPlayerQuery}
-            onAppendMessage={appendChatMessage}
-          />
+          <div className="min-h-0 min-w-0">
+            <GamePanel
+              state={state}
+              onRoll={rollDice}
+              onReset={reset}
+              onQueryChange={setPlayerQuery}
+              onAppendMessage={appendChatMessage}
+            />
+          </div>
         </div>
       )}
 

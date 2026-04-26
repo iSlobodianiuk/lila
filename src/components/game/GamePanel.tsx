@@ -128,7 +128,7 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
   const diceDisabled = state.phase === "finished" || state.position >= GOAL_CELL;
 
   return (
-    <aside className="flex flex-col gap-4 sm:gap-5">
+    <aside className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain pr-1 sm:gap-5">
       {state.chatMessages.length > 0 && (
         <div className="max-h-40 overflow-y-auto rounded-2xl border border-stone-100 bg-white/50 p-2.5 text-[11px] leading-snug text-stone-600 sm:text-xs">
           <div className="mb-1 font-medium text-stone-500">Переписка з провідником</div>
