@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOARD_GRID } from "@/lib/board-layout";
+import { LeelaboardBackground } from "./LeelaboardBackground";
 import { Cell } from "./Cell";
 
 type Props = {
@@ -175,10 +176,19 @@ export function GameBoard({ position }: Props) {
           }}
           className="transition-transform duration-150"
         >
-          <div className="grid grid-cols-9 gap-1 sm:gap-2">
-            {BOARD_GRID.flat().map((cell) => (
-              <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
-            ))}
+          <div
+            className="relative overflow-hidden rounded-2xl"
+            style={{
+              background:
+                "linear-gradient(135deg, #0a2a3a 0%, #0d3b4f 30%, #1a5c6b 60%, #0e3347 100%)",
+            }}
+          >
+            <LeelaboardBackground />
+            <div className="relative z-10 grid grid-cols-9 gap-0">
+              {BOARD_GRID.flat().map((cell) => (
+                <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
+              ))}
+            </div>
           </div>
         </div>
       </div>

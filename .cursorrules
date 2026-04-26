@@ -1,30 +1,534 @@
-# Проект "Ліла" - Технічні правила та Контекст
+# ПРОМПТ ДЛЯ CURSOR — ЛОГІКА ПРАВИЛ ГРИ «ЛІЛА»
 
-## Контекст проєкту
-- Це цифрова версія гри "Ліла" з 72 клітинками (станами свідомості).
-- Рух визначається кидком 6-гранного кубика.
-- Вхід у гру відбувається лише після випадання 6 (народження).
-- На дошці є стріли (підйом) і змії (спуск).
+> **Контекст:** Реалізуй повну ігрову механіку гри «Ліла» згідно з офіційними правилами. Всі правила описані нижче — реалізуй їх точно, нічого не вигадуй від себе.
 
-## Стек технологій
+---
+
+## ЗАГАЛЬНА ЛОГІКА ГРИ
+
+- Ігрове поле: **72 клітинки** (стани свідомості)
+- Мета: потрапити точно на клітинку **№68** («Космічна свідомість»)
+- На полі є **стріли** (переміщують вгору) і **змії** (переміщують вниз)
+- Гравець рухається фішкою по полю
+
+---
+
+## КАРТА СТРІЛ ТА ЗМІЙ
+
+Збережи ці дані у константі — це **точна і фінальна карта**, не змінюй:
+
+```typescript
+// src/data/snakesAndArrows.ts
+
+// СТРІЛИ: { from: хвіст стріли, to: наконечник стріли }
+// Гравець потрапляє на хвіст → піднімається до наконечника
+export const ARROWS: Record<number, number> = {
+  10: 23,  // Очищення → Сила наміру
+  17: 69,  // Співчуття → Творець
+  20: 32,  // Благодійність → Любов
+  22: 60,  // План дхарми → Позитивний інтелект
+  27: 41,  // Служіння → Самореалізація
+  28: 50,  // Істинна віра → Аскеза
+  37: 66,  // Справжня мудрість → Істина
+  45: 67,  // Правильне знання → Космічне благо
+  46: 62,  // Розрізнення → Щастя
+  54: 68,  // Духовна відданість → Космічна свідомість (ВИХІД!)
+};
+
+// ЗМІЇ: { from: голова змії, to: хвіст змії }
+// Гравець потрапляє на голову → спускається до хвоста
+export const SNAKES: Record<number, number> = {
+  72: 51,  // Лінь → Земля (якщо перейшов 72 без попадання на 68)
+  63: 2,   // Бездіяльність → Ілюзія (НАЙДОВША змія)
+  61: 13,  // Негативний інтелект → Нікчемність
+  55: 3,   // Егоїзм → Гнів
+  52: 35,  // Насильство → Страждання
+  44: 9,   // Незнання → Зона комфорту
+  29: 6,   // Знецінення → Омана
+  24: 7,   // Погана компанія → Марнославство
+  16: 4,   // Ревність → Жадібність
+  12: 8,   // Заздрість → Алчність
+};
+```
+
+---
+
+## ПРАВИЛО 1 — ВХІД У ГРУ
+
+Гравець може увійти в гру **тільки** коли на кубику випадає **6**.
+
+```typescript
+// src/utils/gameRules.ts
+
+export function canEnterGame(diceValue: number): boolean {
+  return diceValue === 6;
+}
+```
+
+**Логіка кубика при вході:**
+- Чим менше число — тим далі гравець від чіткого запиту
+- Шістка гарантовано випадає не пізніше ніж на 10-й кидок
+
+```typescript
+export function rollEntryDice(rollCount: number): number {
+  // На 10-му кидку — примусово 6
+  if (rollCount >= 9) return 6;
+  
+  // Зростаюча ймовірність шістки
+  const sixProbability = (1 / 6) + (rollCount * 0.04);
+  if (Math.random() < Math.min(sixProbability, 0.8)) return 6;
+  
+  return Math.floor(Math.random() * 5) + 1; // 1–5
+}
+```
+
+---
+
+## ПРАВИЛО 2 — КОМБІНАЦІЇ ПРИ ВХОДІ (коли випала перша 6)
+
+Після того як гравець отримав шістку для входу — він кидає ще раз. Далі логіка така:
+
+### 1 шістка + інше число:
+```
+Гравець стає на клітинку №1 (Народження)
+→ потім на №6 (Ілюзія)  
+→ потім рухається на суму обох чисел з урахуванням змій/стріл
+
+Приклад: випало 6 і 5 → стає на 1 → на 6 → на 11 (6+5)
+```
+
+### 2 шістки + інше число:
+```
+Стає на 1 → на 6 → рухається на кожну наступну цифру окремо
+
+Приклад: 6/6/4 → 1 → 6 → 12 → (перевірка змій/стріл) → далі на 4
+```
+
+### 3 шістки + інше число:
+```
+Стає на 1 → рухається тільки на число після трьох шісток
+
+Приклад: 6/6/6/4 → стає на 1 → потім на 5 (тільки останнє число)
+```
+
+### 4+ шістки + інше число:
+```
+Стає на 1 → один великий хід на СУМУ всіх чисел
+
+Приклад: 6/6/6/6/4 → 6+6+6+6+4 = 28 → стає на 1 → потім на 29
+```
+
+```typescript
+// src/utils/gameRules.ts
+
+export interface EntryResult {
+  positions: number[]; // всі клітинки які відвідав при вході
+  finalPosition: number;
+}
+
+export function calculateEntryMove(rolls: number[]): EntryResult {
+  const positions: number[] = [1]; // завжди починає з Народження
+  const sixes = rolls.filter(r => r === 6).length;
+  const lastNumber = rolls[rolls.length - 1]; // число після шісток
+  
+  if (sixes === 1) {
+    // 1 шістка: 1 → 6 → (6 + lastNumber)
+    positions.push(applySnakesArrows(6));
+    const next = applySnakesArrows(6 + lastNumber);
+    positions.push(next);
+    return { positions, finalPosition: next };
+  }
+  
+  if (sixes === 2) {
+    // 2 шістки: 1 → 6 → +6 → +lastNumber (кожне окремо)
+    let pos = applySnakesArrows(6);
+    positions.push(pos);
+    pos = applySnakesArrows(pos + 6);
+    positions.push(pos);
+    pos = applySnakesArrows(pos + lastNumber);
+    positions.push(pos);
+    return { positions, finalPosition: pos };
+  }
+  
+  if (sixes === 3) {
+    // 3 шістки: 1 → тільки lastNumber
+    const pos = applySnakesArrows(1 + lastNumber);
+    positions.push(pos);
+    return { positions, finalPosition: pos };
+  }
+  
+  // 4+ шісток: 1 → сума всіх чисел
+  const total = rolls.reduce((a, b) => a + b, 0);
+  const pos = applySnakesArrows(1 + total);
+  positions.push(pos);
+  return { positions, finalPosition: pos };
+}
+```
+
+---
+
+## ПРАВИЛО 3 — РУХ ПІД ЧАС ГРИ (комбінації з шістками)
+
+### 1 шістка + інше число під час гри:
+```
+Рухаєшся на 6 (з перевіркою змій/стріл)
+→ потім на наступне число (з перевіркою змій/стріл)
+
+Приклад: стоїш на 23, випало 6/3 → 29 → (змія?) → далі +3
+```
+
+### 2 шістки + інше число:
+```
++6 → перевірка → +6 → перевірка → +lastNumber → перевірка
+
+Приклад: стоїш на 23, 6/6/3 → 29 → 6(змія?) → 12 → 8(змія?) → +3 → 11
+```
+
+### 3 шістки + інше число («!» — особливий випадок):
+```
+Рухаєшся ТІЛЬКИ на lastNumber (три шістки анулюються)
+
+Приклад: стоїш на 23, 6/6/6/1 → тільки +1 → клітинка 24
+```
+
+### 4 шістки + інше число:
+```
+Один великий хід на СУМУ всіх чисел
+
+Приклад: 6/6/6/6/1 → 6+6+6+6+1 = 25 → рух на 25 клітинок
+```
+
+### 5–6 шісток:
+```
+Великий хід на суму всіх чисел
+Символізує потужну трансформацію → після цього ходу ШІ робить глибший аналіз
+```
+
+```typescript
+export interface MoveResult {
+  positions: number[]; // всі клітинки що відвідав
+  finalPosition: number;
+  isSpecialMove: boolean; // 3+ шістки = особливий момент
+}
+
+export function calculateMove(
+  currentPosition: number,
+  rolls: number[]
+): MoveResult {
+  const positions: number[] = [];
+  const sixes = rolls.filter(r => r === 6).length;
+  const lastNumber = rolls[rolls.length - 1];
+  
+  if (sixes === 0) {
+    // Звичайний хід без шісток
+    const next = applySnakesArrows(currentPosition + lastNumber);
+    positions.push(next);
+    return { positions, finalPosition: next, isSpecialMove: false };
+  }
+  
+  if (sixes === 1) {
+    let pos = applySnakesArrows(currentPosition + 6);
+    positions.push(pos);
+    pos = applySnakesArrows(pos + lastNumber);
+    positions.push(pos);
+    return { positions, finalPosition: pos, isSpecialMove: false };
+  }
+  
+  if (sixes === 2) {
+    let pos = applySnakesArrows(currentPosition + 6);
+    positions.push(pos);
+    pos = applySnakesArrows(pos + 6);
+    positions.push(pos);
+    pos = applySnakesArrows(pos + lastNumber);
+    positions.push(pos);
+    return { positions, finalPosition: pos, isSpecialMove: false };
+  }
+  
+  if (sixes === 3) {
+    // Три шістки — рухаємось тільки на lastNumber
+    const pos = applySnakesArrows(currentPosition + lastNumber);
+    positions.push(pos);
+    return { positions, finalPosition: pos, isSpecialMove: true };
+  }
+  
+  // 4+ шісток — один великий хід на суму
+  const total = rolls.reduce((a, b) => a + b, 0);
+  const pos = applySnakesArrows(currentPosition + total);
+  positions.push(pos);
+  return { positions, finalPosition: pos, isSpecialMove: true };
+}
+```
+
+---
+
+## ПРАВИЛО 4 — ЗМІЇ ТА СТРІЛИ
+
+```typescript
+export function applySnakesArrows(position: number): number {
+  // Якщо вийшли за межі 72 — обробляємо окремо (правило 9)
+  if (position > 72) return handleOverflow(position);
+  if (position < 1) return 1;
+  
+  // Перевіряємо стрілу (підйом)
+  if (ARROWS[position] !== undefined) {
+    return ARROWS[position];
+  }
+  
+  // Перевіряємо змію (спуск)
+  if (SNAKES[position] !== undefined) {
+    return SNAKES[position];
+  }
+  
+  return position;
+}
+```
+
+**Важливо:**
+- Гравець потрапляє на **голову змії** → спускається до **хвоста**
+- Гравець потрапляє на **основу стріли** → піднімається до **наконечника**
+
+---
+
+## ПРАВИЛО 5 — ВИХІД З ВЕРХНЬОГО РЯДУ (клітинки 62–72)
+
+Якщо гравець НЕ потрапив точно на 68 — він проходить до 72, потім іде далі назад:
+
+```typescript
+export function handleOverflow(position: number): number {
+  // Якщо перейшли 72 — рахуємо скільки залишилось після 72
+  // і рухаємось назад
+  if (position > 72) {
+    const overflow = position - 72;
+    return applySnakesArrows(72 - overflow);
+  }
+  return position;
+}
+```
+
+**Особливі випадки для виходу (клітинки 62–72):**
+
+```typescript
+// Правило 10 з офіційних правил:
+
+// Якщо стоїш на 62, кидаєш 6 + інше число → вихід через 68
+// Якщо випало 6/6 + будь-яке число → вихід через 68
+// Якщо випало 6/6/6/1 → залишаєшся на місці, переходиш на 63 → змія на 2
+// Якщо випало 6/6/6/6 + число → великий хід до 72, потім назад, продовжуєш
+
+export function checkExitCondition(
+  currentPosition: number,
+  rolls: number[]
+): { exits: boolean; specialCase: string | null } {
+  const sixes = rolls.filter(r => r === 6).length;
+  const lastNumber = rolls[rolls.length - 1];
+  
+  // Перевірка: чи потрапить гравець на 68
+  const moveResult = calculateMove(currentPosition, rolls);
+  
+  if (moveResult.finalPosition === 68) {
+    return { exits: true, specialCase: null };
+  }
+  
+  // Особливий випадок: 6/6/6/1 на верхньому ряду
+  if (currentPosition >= 62 && sixes === 3 && lastNumber === 1) {
+    return { exits: false, specialCase: 'three_sixes_one' };
+    // Гравець іде на 63 → змія → на 2
+  }
+  
+  return { exits: false, specialCase: null };
+}
+```
+
+---
+
+## ПРАВИЛО 6 — КИДОК ПІСЛЯ ШІСТКИ
+
+Щоразу коли випадає 6 під час гри — гравець кидає ще раз:
+
+```typescript
+// Логіка кидання: накопичуємо кидки поки випадають шістки
+export async function collectRolls(): Promise<number[]> {
+  const rolls: number[] = [];
+  
+  while (true) {
+    const roll = Math.floor(Math.random() * 6) + 1;
+    rolls.push(roll);
+    
+    if (roll !== 6) break; // зупиняємось коли не 6
+    // Якщо 6 — продовжуємо кидати
+  }
+  
+  return rolls;
+}
+```
+
+---
+
+## ПРАВИЛО 7 — НЕЙТРАЛЬНІ КЛІТИНКИ
+
+Клітинки без змій і стріл — нейтральні. Гравець просто стоїть на них. Нічого додаткового не відбувається (тільки показується опис і ШІ-коментар).
+
+---
+
+## ПРАВИЛО 8 — ЗАВЕРШЕННЯ ГРИ
+
+Гра завершується **тільки** при точному попаданні на клітинку **№68**.
+
+```typescript
+export function isGameOver(position: number): boolean {
+  return position === 68;
+}
+```
+
+При завершенні:
+1. Показати фінальний екран
+2. ШІ генерує висновок і план дій
+3. Зберегти гру в базі як `isCompleted: true`
+4. Запропонувати відправити на пошту
+5. Запропонувати залишити відгук
+
+---
+
+## ПРАВИЛО 9 — РУХ ТІЛЬКИ ВПЕРЕД
+
+```
+Назад не йдемо — тільки вперед.
+Стояти на місці = деградація (тому навіть при "анулюванні" шісток 
+гравець все одно рухається на lastNumber).
+```
+
+---
+
+## РЕАЛІЗАЦІЯ АНІМАЦІЇ ХОДУ
+
+При кожному ході показувати послідовну анімацію:
+
+```typescript
+// src/hooks/useGameAnimation.ts
+
+export async function animateMove(
+  positions: number[],
+  setCurrentPosition: (pos: number) => void,
+  onSnake: (from: number, to: number) => void,
+  onArrow: (from: number, to: number) => void,
+) {
+  for (const pos of positions) {
+    setCurrentPosition(pos);
+    
+    // Перевірка змії
+    if (SNAKES[pos]) {
+      await delay(800);
+      // Показати анімацію змії
+      onSnake(pos, SNAKES[pos]);
+      setCurrentPosition(SNAKES[pos]);
+      await delay(1000);
+    }
+    
+    // Перевірка стріли
+    if (ARROWS[pos]) {
+      await delay(800);
+      // Показати анімацію стріли
+      onArrow(pos, ARROWS[pos]);
+      setCurrentPosition(ARROWS[pos]);
+      await delay(1000);
+    }
+    
+    await delay(500); // пауза між кроками
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+---
+
+## ВІДОБРАЖЕННЯ КИДКА КУБИКА
+
+```typescript
+// Кубик показує всі кинуті числа:
+// Якщо звичайний хід: показує одне число [4]
+// Якщо з шістками: показує всю послідовність [6, 6, 3]
+// Анімація обертання кубика перед показом числа
+
+// UI компонент:
+// <DiceDisplay rolls={[6, 6, 3]} />
+// Показати: 🎲6 → 🎲6 → 🎲3
+```
+
+---
+
+## СТАН ГРИ — ПОВНА СХЕМА
+
+```typescript
+// src/types/game.ts
+
+export type GamePhase = 
+  | 'request_forming'  // гравець формулює запит і кидає для входу
+  | 'playing'          // гравець грає
+  | 'finished';        // гравець дійшов до 68
+
+export interface GameState {
+  phase: GamePhase;
+  
+  // Запит
+  playerRequest: string;        // поточний текст запиту
+  fixedRequest: string | null;  // зафіксований запит (після 6)
+  entryRollCount: number;       // скільки разів кидав для входу
+  
+  // Позиція
+  currentPosition: number;      // поточна клітинка (0 = ще не увійшов)
+  previousPosition: number;     // попередня клітинка
+  
+  // Кидки
+  lastRolls: number[];          // останній набір кидків [6, 3]
+  totalMoves: number;           // загальна кількість ходів після входу
+  
+  // Монетизація
+  movesAfterEntry: number;      // ходів після входу в гру
+  isPaid: boolean;              // чи оплатив гру
+  
+  // Історія
+  visitedCells: {
+    cellNumber: number;
+    cellName: string;
+    timestamp: Date;
+    rolls: number[];
+    wasSnake: boolean;
+    wasArrow: boolean;
+  }[];
+  
+  // Чат
+  chatMessages: {
+    role: 'user' | 'assistant';
+    content: string;
+    cellNumber?: number;
+    timestamp: Date;
+  }[];
+}
+```
+
+---
+
+## ПРІОРИТЕТ РЕАЛІЗАЦІЇ
+
+Вноси зміни у такому порядку:
+
+1. `src/data/snakesAndArrows.ts` — константи змій і стріл (уточни за картою)
+2. `src/types/game.ts` — типи стану гри
+3. `src/utils/gameRules.ts` — вся логіка правил (calculateMove, applySnakesArrows, тощо)
+4. `src/hooks/use-leela-game.ts` — оновити хук з новим станом і логікою
+5. `src/utils/gameAnimation.ts` — анімація ходу
+6. UI компоненти — оновити щоб відображали нову логіку
+
+---
+
+## ТЕХНІЧНИЙ СТЕК (не змінювати)
+
 - Framework: Next.js 15.0.3 (App Router)
 - React: 18.3.1
-- Styling: Tailwind CSS 3.4.1 (НЕ використовувати v4)
+- Styling: Tailwind CSS 3.4.1
 - Language: TypeScript
 - Icons: Lucide React
-
-## Правила коду
-- Мова інтерфейсу та коментарів: Українська.
-- Архітектура: Декомпозиція компонентів у `src/components/game`.
-- Логіка стану: Використовувати кастомний хук `use-leela-game.ts`.
-- Стилізація: Тільки стандартні класи Tailwind 3.
-- Код має бути чистим, модульним і продуктивним.
-
-## UI/UX орієнтири
-- Стиль інтерфейсу: спокійний, духовний, сучасний.
-- Дозволені візуальні мотиви: м'які градієнти, плавні переходи, скло-подібні картки.
-
-## Обмеження
-- ЗАБОРОНЕНО пропонувати оновлення до Next.js 16 або React 19.
-- ЗАБОРОНЕНО використовувати `@import "tailwindcss"` (використовувати директиви @tailwind).
-- ЗАБОРОНЕНО використовувати Turbopack, якщо це не вказано явно.
+- ЗАБОРОНЕНО: Next.js 16, React 19, Turbopack, `@import "tailwindcss"`
