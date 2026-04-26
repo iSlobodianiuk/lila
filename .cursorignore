@@ -1,0 +1,17 @@
+﻿# Ігнорування системних папок
+.next/
+node_modules/
+.git/
+public/
+
+# Файли конфігурації (їх краще згадувати через @ вручну)
+package-lock.json
+.eslintrc.json
+next.config.ts
+tsconfig.json
+postcss.config.js
+tailwind.config.ts
+
+# Логи та тимчасові файли
+*.log
+.env*
