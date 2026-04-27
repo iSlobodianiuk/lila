@@ -28,7 +28,7 @@ function HomeContent() {
     loadGame,
     setCompletionResult,
     markCompletionSynced,
-  } = useLeelaGame();
+  } = useLeelaGame({ skipLocalHydrate: Boolean(continueId) });
 
   const continueLoadRef = useRef(false);
   const completeRef = useRef(false);

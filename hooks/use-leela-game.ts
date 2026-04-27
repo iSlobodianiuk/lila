@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GOAL_CELL, TOTAL_CELLS, getCell } from "@/lib/board-data";
+import {
+  clearGameSessionSnapshot,
+  loadGameSessionSnapshot,
+  saveGameSessionSnapshot,
+} from "@/lib/game-local-storage";
 import type { ChatMessage, GameState, LoadGameInput } from "@/lib/types";
 import { rollEntryDice, rollPlayDice } from "@/src/utils/diceLogic";
 
@@ -48,9 +53,44 @@ function historyItem(cellNumber: number): { cellNumber: number; cellName: string
   };
 }
 
-export function useLeelaGame() {
+export type UseLeelaGameOptions = {
+  /** Якщо true — не відновлювати з localStorage (наприклад, завантаження гри з API через `?continue=`). */
+  skipLocalHydrate?: boolean;
+};
+
+export function useLeelaGame(options?: UseLeelaGameOptions) {
   const [state, setState] = useState<GameState>(initialState);
   const rollingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedRef = useRef(false);
+  /** Запис у localStorage лише після гідрації й коли безпечно (не перезатирати LS до `loadGame` з `?continue=`). */
+  const persistReadyRef = useRef(false);
+  const skipHydrate = options?.skipLocalHydrate ?? false;
+
+  useEffect(() => {
+    if (skipHydrate) {
+      hydratedRef.current = true;
+      persistReadyRef.current = false;
+      return;
+    }
+    const restored = loadGameSessionSnapshot();
+    if (restored && Object.keys(restored).length > 0) {
+      setState((prev) => ({
+        ...prev,
+        ...restored,
+        isRolling: false,
+      }));
+    }
+    hydratedRef.current = true;
+    persistReadyRef.current = true;
+  }, [skipHydrate]);
+
+  useEffect(() => {
+    if (!hydratedRef.current || !persistReadyRef.current) return;
+    const timer = window.setTimeout(() => {
+      saveGameSessionSnapshot(state);
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [state]);
 
   const appendChatMessage = useCallback(
     (msg: Omit<ChatMessage, "id" | "createdAt"> & { createdAt?: string }) => {
@@ -113,6 +153,8 @@ export function useLeelaGame() {
       actionPlan: data.actionPlan ?? null,
       completionSynced: data.isCompleted,
     });
+    hydratedRef.current = true;
+    persistReadyRef.current = true;
   }, []);
 
   const startGame = useCallback(() => {
@@ -238,6 +280,8 @@ export function useLeelaGame() {
 
   const reset = useCallback(() => {
     if (rollingTimer.current) clearTimeout(rollingTimer.current);
+    clearGameSessionSnapshot();
+    persistReadyRef.current = true;
     setState(initialState);
   }, []);
 
