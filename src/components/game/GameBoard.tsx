@@ -230,7 +230,7 @@ export function GameBoard({ position }: Props) {
   }, [isDraggingUi, scaleUi]);
 
   return (
-    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-2 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-5">
+    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-1 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-3">
       <div className="mb-2 flex items-center justify-between px-1 sm:mb-3 sm:px-0">
         <p className="text-[11px] text-stone-500 sm:text-xs">Жест: pinch/drag для навігації дошкою</p>
         <div className="flex items-center gap-1">
@@ -358,7 +358,7 @@ export function GameBoard({ position }: Props) {
       >
         <div
           ref={panLayerRef}
-          className="mx-auto w-full max-w-[min(100%,calc((100dvh-260px)*1.125))]"
+          className="mx-auto w-full max-w-none"
         >
           <div
             ref={zoomLayerRef}

@@ -208,7 +208,7 @@ function HomeContent() {
   ]);
 
   return (
-    <main className="mx-auto flex min-h-screen min-h-0 w-full max-w-[1800px] flex-col gap-5 px-3 py-6 sm:gap-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="mx-auto flex min-h-screen min-h-0 w-full max-w-[1800px] flex-col gap-5 px-2 py-6 sm:gap-8 sm:px-4 sm:py-10 lg:px-5">
       <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <header className="flex flex-1 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
           <span className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
