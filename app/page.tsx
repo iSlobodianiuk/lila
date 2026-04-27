@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/app-header";
 import { useLeelaGame } from "@/hooks/use-leela-game";
 import { toPersistedChat } from "@/lib/serialize-game";
 import type { ChatHistoryPersistItem, GameHistoryItem, LoadGameInput } from "@/lib/types";
+import { appendMoveForCurrentUser, createGameForCurrentUser } from "@/src/app/actions/game";
 import { GameBoard } from "@/src/components/game/GameBoard";
 import { EntryPhase } from "@/src/components/game/EntryPhase";
 import { GamePanel } from "@/src/components/game/GamePanel";
@@ -78,70 +79,62 @@ function HomeContent() {
     if (state.phase !== "playing" || !state.hasEntered || state.activeGameId) return;
     if (!(state.fixedPlayerRequest ?? state.playerQuery).trim()) return;
 
-    const ac = new AbortController();
     (async () => {
       try {
         const snap = stateRef.current;
         const pr = snap.fixedPlayerRequest ?? snap.playerQuery;
         if (!pr.trim()) return;
-        const res = await fetch("/api/games", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            playerRequest: pr,
-            currentPosition: snap.position,
-            gameHistory: snap.gameHistory,
-            chatHistory: toPersistedChat(snap),
-          }),
-          signal: ac.signal,
+        const data = await createGameForCurrentUser({
+          playerRequest: pr,
+          currentPosition: snap.position,
+          gameHistory: snap.gameHistory,
+          chatHistory: toPersistedChat(snap),
         });
-        if (!res.ok) return;
-        const data = (await res.json()) as { id?: string };
-        if (data.id) setActiveGameId(data.id);
-      } catch (e) {
-        if ((e as Error).name === "AbortError") return;
+        if (data.id) {
+          setActiveGameId(data.id);
+        }
+      } catch {
+        /* network/action */
       }
     })();
-
-    return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- create once when entering play; body uses stateRef
   }, [state.phase, state.hasEntered, state.activeGameId, setActiveGameId]);
 
-  const persistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPayload = useRef<string>("");
+  const persistedMovesRef = useRef(0);
+  const persistedGameIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!state.activeGameId) return;
+    if (persistedGameIdRef.current === state.activeGameId) return;
+    persistedGameIdRef.current = state.activeGameId;
+    persistedMovesRef.current = state.gameHistory.length;
+  }, [state.activeGameId, state.gameHistory.length]);
 
   useEffect(() => {
     if (!state.activeGameId) return;
     if (state.phase === "entry") return;
     if (state.completionSynced) return;
     if (state.phase === "finished") return;
+    if (state.gameHistory.length <= persistedMovesRef.current) return;
 
-    const payload = JSON.stringify({
-      currentPosition: state.position,
-      gameHistory: state.gameHistory,
-      chatHistory: toPersistedChat(state),
-      playerRequest: state.fixedPlayerRequest ?? state.playerQuery,
-    });
-    if (payload === lastPayload.current) return;
+    const move = state.gameHistory[state.gameHistory.length - 1];
+    if (!move) return;
 
-    if (persistRef.current) clearTimeout(persistRef.current);
-    persistRef.current = setTimeout(async () => {
+    (async () => {
       try {
-        const res = await fetch(`/api/games/${state.activeGameId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: payload,
+        await appendMoveForCurrentUser({
+          gameId: state.activeGameId,
+          currentPosition: state.position,
+          move,
+          chatHistory: toPersistedChat(state),
+          playerRequest: state.fixedPlayerRequest ?? state.playerQuery,
         });
-        if (res.ok) lastPayload.current = payload;
+        persistedMovesRef.current = state.gameHistory.length;
       } catch {
-        /* network */
+        /* network/action */
       }
-    }, 900);
-
-    return () => {
-      if (persistRef.current) clearTimeout(persistRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce tracks listed fields, not full state object
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist only when a new move is appended
   }, [
     state.activeGameId,
     state.phase,
@@ -165,17 +158,21 @@ function HomeContent() {
     (async () => {
       try {
         const snap = stateRef.current;
-        const flushBody = JSON.stringify({
-          currentPosition: snap.position,
-          gameHistory: snap.gameHistory,
-          chatHistory: toPersistedChat(snap),
-          playerRequest: snap.fixedPlayerRequest ?? snap.playerQuery,
-        });
-        await fetch(`/api/games/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: flushBody,
-        });
+        if (persistedMovesRef.current < snap.gameHistory.length) {
+          for (let i = persistedMovesRef.current; i < snap.gameHistory.length; i += 1) {
+            const move = snap.gameHistory[i];
+            if (!move) continue;
+            await appendMoveForCurrentUser({
+              gameId: id,
+              currentPosition: move.cellNumber,
+              move,
+              chatHistory: i === snap.gameHistory.length - 1 ? toPersistedChat(snap) : undefined,
+              playerRequest:
+                i === snap.gameHistory.length - 1 ? (snap.fixedPlayerRequest ?? snap.playerQuery) : undefined,
+            });
+            persistedMovesRef.current = i + 1;
+          }
+        }
         const res = await fetch(`/api/games/${id}/complete`, {
           method: "POST",
         });
