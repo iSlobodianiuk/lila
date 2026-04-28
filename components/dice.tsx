@@ -22,7 +22,7 @@ function DiceFace({ value }: { value: number }) {
             key={idx}
             className={
               has
-                ? "rounded-full bg-stone-700 shadow-inner"
+                ? "rounded-full bg-stone-600 shadow-inner"
                 : ""
             }
           />
@@ -44,17 +44,17 @@ type Props = {
 export function Dice({ value, isRolling, onRoll, label, hint, disabled }: Props) {
   const display = value ?? 6;
   return (
-    <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+    <div className="flex flex-col items-center gap-3 sm:gap-4">
       <button
         type="button"
         onClick={onRoll}
         disabled={disabled || isRolling}
         aria-label="Кинути кубик"
         className={[
-          "relative h-20 w-20 rounded-2xl border border-white/60 bg-gradient-to-br from-white to-stone-50 sm:h-24 sm:w-24",
-          "shadow-[0_12px_30px_-10px_rgba(120,90,60,0.45)] transition-all duration-300",
-          "hover:scale-[1.03] hover:shadow-[0_16px_36px_-10px_rgba(120,90,60,0.55)]",
-          "disabled:cursor-not-allowed disabled:opacity-90",
+          "relative h-20 w-20 rounded-xl border border-stone-200 bg-gradient-to-br from-white via-stone-50 to-stone-100 sm:h-24 sm:w-24",
+          "shadow-[0_8px_24px_-8px_rgba(92,74,54,0.35)] transition-all duration-300",
+          "hover:scale-[1.03] hover:shadow-[0_12px_32px_-8px_rgba(92,74,54,0.45)] hover:border-stone-300",
+          "disabled:cursor-not-allowed disabled:opacity-80",
           isRolling ? "animate-dice-roll" : "",
         ].join(" ")}
       >
@@ -64,12 +64,17 @@ export function Dice({ value, isRolling, onRoll, label, hint, disabled }: Props)
         type="button"
         onClick={onRoll}
         disabled={disabled || isRolling}
-        className="min-h-10 rounded-full bg-stone-900/90 px-4 py-2 text-xs font-medium tracking-wide text-stone-50 shadow-md transition hover:bg-stone-900 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
+        className={[
+          "min-h-10 rounded-xl px-5 py-2.5 text-xs font-medium tracking-wide shadow-md transition-all sm:px-6 sm:text-sm",
+          "bg-gradient-to-br from-stone-700 to-stone-800 text-stone-50",
+          "hover:from-stone-800 hover:to-stone-900 hover:shadow-lg",
+          "disabled:cursor-not-allowed disabled:opacity-60",
+        ].join(" ")}
       >
         {isRolling ? "Кидаємо…" : label}
       </button>
       {hint && (
-        <p className="max-w-[14rem] text-center text-[11px] leading-snug text-stone-500 sm:text-xs">
+        <p className="max-w-[14rem] text-center text-[11px] leading-relaxed text-stone-500 sm:text-xs">
           {hint}
         </p>
       )}

@@ -144,7 +144,7 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/40 bg-white/55 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:gap-4 sm:p-5">
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-stone-200/60 bg-gradient-to-br from-white/90 to-stone-50/80 p-4 shadow-[0_12px_40px_-15px_rgba(92,74,54,0.25)] sm:gap-4 sm:p-5">
         <Dice
           value={state.lastRoll}
           isRolling={state.isRolling}
@@ -155,7 +155,7 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
         />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-3xl border border-white/40 bg-white/55 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:gap-4 sm:p-5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-stone-200/60 bg-gradient-to-br from-white/90 to-stone-50/80 p-4 shadow-[0_12px_40px_-15px_rgba(92,74,54,0.25)] sm:gap-4 sm:p-5">
         <div>
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">
             Статус

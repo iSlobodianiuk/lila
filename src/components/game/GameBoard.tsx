@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOARD_GRID } from "@/lib/board-layout";
 import { LeelaboardBackground } from "./LeelaboardBackground";
+import { SnakesAndLadders } from "./SnakesAndLadders";
 import { Cell } from "./Cell";
 
 type Props = {
@@ -230,14 +231,14 @@ export function GameBoard({ position }: Props) {
   }, [isDraggingUi, scaleUi]);
 
   return (
-    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-1 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-3">
+    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl leela-board p-1 sm:p-3">
       <div className="mb-2 flex items-center justify-between px-1 sm:mb-3 sm:px-0">
-        <p className="text-[11px] text-stone-500 sm:text-xs">Жест: pinch/drag для навігації дошкою</p>
-        <div className="flex items-center gap-1">
+        <p className="text-[10px] text-stone-500 sm:text-xs font-medium">Pinch/drag для навігації</p>
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => commitViewport(scaleRef.current + SCALE_STEP, offsetRef.current, true)}
-            className="h-7 w-7 rounded-full border border-stone-200 bg-white/80 text-sm font-semibold text-stone-700 transition hover:bg-white"
+            className="h-7 w-7 rounded-lg border border-stone-300/60 bg-white/90 text-sm font-semibold text-stone-600 shadow-sm transition hover:bg-white hover:border-stone-400 hover:shadow"
             aria-label="Збільшити дошку"
           >
             +
@@ -245,24 +246,24 @@ export function GameBoard({ position }: Props) {
           <button
             type="button"
             onClick={() => commitViewport(scaleRef.current - SCALE_STEP, offsetRef.current, true)}
-            className="h-7 w-7 rounded-full border border-stone-200 bg-white/80 text-sm font-semibold text-stone-700 transition hover:bg-white"
+            className="h-7 w-7 rounded-lg border border-stone-300/60 bg-white/90 text-sm font-semibold text-stone-600 shadow-sm transition hover:bg-white hover:border-stone-400 hover:shadow"
             aria-label="Зменшити дошку"
           >
-            -
+            −
           </button>
           <button
             type="button"
             onClick={() => focusOnCell(position, true)}
-            className="rounded-full border border-stone-200 bg-white/80 px-2 py-1 text-[10px] font-medium text-stone-700 transition hover:bg-white sm:text-xs"
+            className="rounded-lg border border-stone-300/60 bg-white/90 px-2.5 py-1 text-[10px] font-medium text-stone-600 shadow-sm transition hover:bg-white hover:border-stone-400 hover:shadow sm:text-xs"
           >
-            Find me
+            Знайти мене
           </button>
           <button
             type="button"
             onClick={resetView}
-            className="rounded-full border border-stone-200 bg-white/80 px-2 py-1 text-[10px] font-medium text-stone-700 transition hover:bg-white sm:text-xs"
+            className="rounded-lg border border-stone-300/60 bg-white/90 px-2.5 py-1 text-[10px] font-medium text-stone-600 shadow-sm transition hover:bg-white hover:border-stone-400 hover:shadow sm:text-xs"
           >
-            Reset
+            Скинути
           </button>
         </div>
       </div>
@@ -365,14 +366,11 @@ export function GameBoard({ position }: Props) {
             style={{ transform: "scale(1)", transformOrigin: "center center" }}
           >
             <div
-              className="relative overflow-hidden rounded-2xl"
-              style={{
-                background:
-                  "linear-gradient(135deg, #0a2a3a 0%, #0d3b4f 30%, #1a5c6b 60%, #0e3347 100%)",
-              }}
+              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#faf6f0] via-[#f5ece2] to-[#e8ddd0]"
             >
               <LeelaboardBackground />
-              <div className="relative z-10 grid grid-cols-9 gap-1">
+              <SnakesAndLadders />
+              <div className="relative z-10 grid grid-cols-9 gap-[3px] p-[3px] sm:gap-1 sm:p-1">
                 {BOARD_GRID.flat().map((cell) => (
                   <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
                 ))}

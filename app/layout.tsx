@@ -31,7 +31,7 @@ export default function RootLayout({
     <html
       lang="uk"
       suppressHydrationWarning
-      className={`${inter.variable} ${cormorant.variable} h-full antialiased`}
+      className={`${inter.variable} ${cormorant.variable} h-full antialiased bg-[#faf8f5]`}
     >
       <body suppressHydrationWarning className="min-h-full">
         <Providers>{children}</Providers>
