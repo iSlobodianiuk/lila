@@ -1,0 +1,39 @@
+---
+alwaysApply: true
+---
+
+# Leela Project — Cursor Rules
+
+## Стек (суворо дотримуватись)
+- Next.js 15.0.3, App Router — НЕ використовувати Pages Router
+- React 18.3.1 — НЕ React 19
+- TypeScript strict mode — завжди типізувати, no `any`
+- Tailwind CSS 3.4.1 — НЕ використовувати `@import "tailwindcss"`
+- Prisma + PostgreSQL
+- NextAuth v5 (Auth.js) — імпорти з `next-auth`, не зі старих версій
+- ЗАБОРОНЕНО: Next.js 16, Turbopack
+
+## Стиль коду
+- Компоненти — тільки functional components з TypeScript типами
+- Не хардкодити значення — виносити в константи
+- Server Actions — для мутацій (create/update), не fetch напряму
+- API routes — тільки для read операцій (GET) та complete flow
+- Завжди додавати обробку помилок (try/catch в Server Actions)
+
+## Архітектура проєкту
+- Ігрова логіка → `src/utils/gameRules.ts`
+- Типи → `src/types/game.ts`
+- Константи змій/стріл → `src/data/snakesAndArrows.ts`
+- Центральний стан гри → `hooks/use-leela-game.ts`
+- Server Actions → `src/app/actions/game.ts`
+
+## Правила для змін
+- Перед великим рефакторингом — запитай підтвердження
+- Не чіпай API routes `/api/games` і `/api/games/[id]/complete` без явної вказівки
+- Не змінюй карту змій і стріл у `snakesAndArrows.ts` — вона фінальна
+- При зміні `use-leela-game.ts` — мінімальний ризик регресій
+
+## Контекст розробника
+- Я займаюсь вайб-кодингом — пояснюй зміни коротко і зрозуміло
+- Показуй тільки змінені частини файлу, не весь файл цілком
+- Якщо задача велика — розбий на кроки і питай перед кожним

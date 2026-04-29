@@ -2,16 +2,15 @@
 .next/
 node_modules/
 .git/
-public/
 
-# Файли конфігурації (їх краще згадувати через @ вручну)
-package-lock.json
-.eslintrc.json
-next.config.ts
-tsconfig.json
-postcss.config.js
-tailwind.config.ts
+# Міграції Prisma (великі SQL файли, не потрібні агенту)
+prisma/migrations/
 
 # Логи та тимчасові файли
 *.log
 .env*
+
+# Lock файли
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
