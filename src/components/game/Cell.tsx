@@ -88,13 +88,13 @@ function CellBase({ cell, isActive }: Props) {
   const cellClass = useMemo(
     () =>
       [
-        "group relative aspect-square select-none rounded-xl border backdrop-blur-sm transition-all duration-500 sm:rounded-2xl",
+        "group relative aspect-square select-none rounded-xl border backdrop-blur-md transition-all duration-300 sm:rounded-2xl",
         "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
-          ? "z-[1] scale-[1.04] border-amber-400/80 bg-white/25 shadow-[0_8px_28px_-8px_rgba(212,165,116,0.45)] ring-2 ring-amber-400/70"
-          : "border-white/20 bg-white/15 hover:bg-white/25",
+          ? "z-[1] scale-[1.04] border-amber-300/85 bg-white/40 shadow-[0_10px_28px_-10px_rgba(212,165,116,0.55)] ring-2 ring-amber-300/75"
+          : "border-white/35 bg-white/28 shadow-[0_8px_24px_-14px_rgba(12,24,42,0.45)] hover:border-white/50 hover:bg-white/35",
         isGoal && !isActive
-          ? "border-amber-300/50 bg-gradient-to-br from-amber-400/25 to-amber-600/15"
+          ? "border-amber-300/70 bg-gradient-to-br from-amber-300/40 to-amber-500/22"
           : "",
       ].join(" "),
     [isActive, isGoal],
@@ -109,14 +109,19 @@ function CellBase({ cell, isActive }: Props) {
         onMouseEnter={() => setTooltipOpen(true)}
         onMouseLeave={() => setTooltipOpen(false)}
       >
-        <span className="absolute left-1.5 top-1 font-mono text-[10px] tracking-tight text-white/40">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-black/12 via-black/10 to-black/18"
+        />
+
+        <span className="absolute left-1.5 top-1 z-[1] font-mono text-[10px] tracking-tight text-white/65 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">
           {cell.id}
         </span>
 
         {isGoal && (
           <span
             aria-hidden
-            className="absolute right-1.5 top-1 text-[10px] text-amber-200"
+            className="absolute right-1.5 top-1 z-[1] text-[10px] text-amber-100/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]"
             title="Ціль гри"
           >
             ★
@@ -125,7 +130,7 @@ function CellBase({ cell, isActive }: Props) {
         {isEntry && (
           <span
             aria-hidden
-            className="absolute right-1.5 top-1 text-[10px] text-rose-200"
+            className="absolute right-1.5 top-1 z-[1] text-[10px] text-rose-100/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]"
             title="Клітинка входу (6)"
           >
             ◉
@@ -134,7 +139,7 @@ function CellBase({ cell, isActive }: Props) {
         {hasArrow && (
           <span
             aria-hidden
-            className="absolute left-1 bottom-1 rounded-full bg-emerald-500/35 px-1 py-0.5 text-[8px] font-semibold leading-none text-emerald-100 sm:left-1.5 sm:px-1.5 sm:text-[9px]"
+            className="absolute left-1 bottom-1 z-[1] rounded-full border border-emerald-200/35 bg-emerald-500/45 px-1 py-0.5 text-[8px] font-semibold leading-none text-emerald-50 shadow-[0_2px_6px_-3px_rgba(0,0,0,0.5)] sm:left-1.5 sm:px-1.5 sm:text-[9px]"
             title={`Стріла до клітинки ${cell.arrowTo}`}
           >
             ↑ {cell.arrowTo}
@@ -143,17 +148,17 @@ function CellBase({ cell, isActive }: Props) {
         {hasSnake && (
           <span
             aria-hidden
-            className="absolute right-1 bottom-1 rounded-full bg-rose-500/35 px-1 py-0.5 text-[8px] font-semibold leading-none text-rose-100 sm:right-1.5 sm:px-1.5 sm:text-[9px]"
+            className="absolute right-1 bottom-1 z-[1] rounded-full border border-rose-200/35 bg-rose-500/45 px-1 py-0.5 text-[8px] font-semibold leading-none text-rose-50 shadow-[0_2px_6px_-3px_rgba(0,0,0,0.5)] sm:right-1.5 sm:px-1.5 sm:text-[9px]"
             title={`Змія до клітинки ${cell.snakeTo}`}
           >
             ↓ {cell.snakeTo}
           </span>
         )}
 
-        <span className="mt-2 line-clamp-1 text-[9px] font-medium leading-tight text-white/90 sm:mt-2.5 sm:text-[11px] sm:line-clamp-2">
+        <span className="relative z-[1] mt-2 line-clamp-1 text-[10px] font-semibold leading-[1.2] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] sm:mt-2.5 sm:text-[11px] sm:line-clamp-2">
           {cell.name}
         </span>
-        <span className="hidden text-[9px] font-light italic leading-none text-white/50 md:block">
+        <span className="relative z-[1] hidden text-[9px] font-normal italic leading-none text-white/75 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] md:block">
           {cell.original}
         </span>
 

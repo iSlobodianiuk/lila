@@ -1,6 +1,7 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import type { ChatHistoryPersistItem, GameHistoryItem } from "@/lib/types";
@@ -28,7 +29,7 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function assertAuthUserId(session: Awaited<ReturnType<typeof auth>>): string {
+function assertAuthUserId(session: Session | null): string {
   const userId = session?.user?.id;
   if (!userId) {
     throw new Error("Unauthorized");

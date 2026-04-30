@@ -111,7 +111,8 @@ function HomeContent() {
   }, [state.activeGameId, state.gameHistory.length]);
 
   useEffect(() => {
-    if (!state.activeGameId) return;
+    const gameId = state.activeGameId;
+    if (!gameId) return;
     if (state.phase === "entry") return;
     if (state.completionSynced) return;
     if (state.phase === "finished") return;
@@ -123,7 +124,7 @@ function HomeContent() {
     (async () => {
       try {
         await appendMoveForCurrentUser({
-          gameId: state.activeGameId,
+          gameId,
           currentPosition: state.position,
           move,
           chatHistory: toPersistedChat(state),

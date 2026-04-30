@@ -9,7 +9,8 @@ type Props = {
   position: number;
 };
 
-const MIN_SCALE = 0.9;
+const DEFAULT_SCALE = 1;
+const MIN_SCALE = DEFAULT_SCALE;
 const MAX_SCALE = 2.6;
 const SCALE_STEP = 0.08;
 const AUTO_FOCUS_COOLDOWN_MS = 900;
@@ -28,9 +29,9 @@ export function GameBoard({ position }: Props) {
   const lastManualPanAtRef = useRef(0);
   const rafRef = useRef<number | null>(null);
 
-  const [scaleUi, setScaleUi] = useState(1);
+  const [scaleUi, setScaleUi] = useState(DEFAULT_SCALE);
   const [isDraggingUi, setIsDraggingUi] = useState(false);
-  const scaleRef = useRef(1);
+  const scaleRef = useRef(DEFAULT_SCALE);
   const offsetRef = useRef<Point>({ x: 0, y: 0 });
 
   const applyTransform = useCallback((animate: boolean) => {
@@ -132,7 +133,7 @@ export function GameBoard({ position }: Props) {
   );
 
   const resetView = useCallback(() => {
-    commitViewport(1, { x: 0, y: 0 }, true);
+    commitViewport(DEFAULT_SCALE, { x: 0, y: 0 }, true);
   }, [commitViewport]);
 
   const focusOnCell = useCallback(
@@ -207,14 +208,14 @@ export function GameBoard({ position }: Props) {
   }, [handleWheelZoom]);
 
   useEffect(() => {
-    if (scaleRef.current <= 1) return;
+    if (scaleRef.current <= DEFAULT_SCALE) return;
     const now = Date.now();
     if (now - lastManualPanAtRef.current < AUTO_FOCUS_COOLDOWN_MS) return;
     focusOnCell(position, true);
   }, [focusOnCell, position]);
 
   useEffect(() => {
-    commitViewport(1, { x: 0, y: 0 }, false);
+    commitViewport(DEFAULT_SCALE, { x: 0, y: 0 }, false);
     return () => {
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
@@ -225,7 +226,7 @@ export function GameBoard({ position }: Props) {
   }, []);
 
   const viewportClass = useMemo(() => {
-    if (scaleUi <= 1) return "cursor-default";
+    if (scaleUi <= DEFAULT_SCALE) return "cursor-default";
     return isDraggingUi ? "cursor-grabbing" : "cursor-grab";
   }, [isDraggingUi, scaleUi]);
 
@@ -270,9 +271,9 @@ export function GameBoard({ position }: Props) {
       <div
         ref={viewportRef}
         className={`relative min-h-0 flex-1 overflow-hidden rounded-2xl select-none ${viewportClass}`}
-        style={{ touchAction: scaleUi > 1 ? "none" : "pan-y pinch-zoom" }}
+        style={{ touchAction: scaleUi > DEFAULT_SCALE ? "none" : "pan-y pinch-zoom" }}
         onPointerDown={(event) => {
-          if (scaleRef.current <= 1) return;
+          if (scaleRef.current <= DEFAULT_SCALE) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
           dragActiveRef.current = true;
@@ -321,7 +322,7 @@ export function GameBoard({ position }: Props) {
             pinchStartRef.current = { distance, scale: scaleRef.current };
             return;
           }
-          if (event.touches.length === 1 && scaleRef.current > 1) {
+          if (event.touches.length === 1 && scaleRef.current > DEFAULT_SCALE) {
             const touch = event.touches[0];
             panStartRef.current = {
               x: touch.clientX - offsetRef.current.x,
@@ -337,7 +338,7 @@ export function GameBoard({ position }: Props) {
             commitViewport(pinchStartRef.current.scale * ratio, offsetRef.current, false);
             return;
           }
-          if (event.touches.length === 1 && panStartRef.current && scaleRef.current > 1) {
+          if (event.touches.length === 1 && panStartRef.current && scaleRef.current > DEFAULT_SCALE) {
             const touch = event.touches[0];
             offsetRef.current = clampOffset(
               {
