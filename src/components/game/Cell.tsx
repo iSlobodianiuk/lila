@@ -88,7 +88,7 @@ function CellBase({ cell, isActive }: Props) {
   const cellClass = useMemo(
     () =>
       [
-        "group relative aspect-square select-none rounded-xl border backdrop-blur-md transition-all duration-300 sm:rounded-2xl",
+        "group relative aspect-square select-none rounded-xl border backdrop-blur-sm transition-all duration-300 sm:rounded-2xl",
         "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
           ? "z-[1] scale-[1.04] border-amber-300/85 bg-white/40 shadow-[0_10px_28px_-10px_rgba(212,165,116,0.55)] ring-2 ring-amber-300/75"

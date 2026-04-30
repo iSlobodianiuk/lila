@@ -373,7 +373,7 @@ export function GameBoard({ position }: Props) {
               }}
             >
               <LeelaboardBackground />
-              <div className="relative z-10 grid grid-cols-9 gap-1">
+              <div className="relative z-10 grid grid-cols-9 gap-1 p-[15px]">
                 {BOARD_GRID.flat().map((cell) => (
                   <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
                 ))}
