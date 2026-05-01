@@ -5,6 +5,7 @@ node_modules/
 
 # Міграції Prisma (великі SQL файли, не потрібні агенту)
 prisma/migrations/
+public
 
 # Логи та тимчасові файли
 *.log

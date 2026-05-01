@@ -88,7 +88,7 @@ function CellBase({ cell, isActive }: Props) {
   const cellClass = useMemo(
     () =>
       [
-        "group relative aspect-square select-none rounded-xl border transition-all duration-300 sm:rounded-2xl",
+        "group relative h-full w-full select-none rounded-xl border transition-all duration-300 sm:rounded-2xl",
         "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
           ? "z-[3] scale-[1.04] border-amber-300/85 bg-white/30 shadow-[0_10px_28px_-10px_rgba(212,165,116,0.55)] ring-2 ring-amber-300/75"
@@ -111,10 +111,10 @@ function CellBase({ cell, isActive }: Props) {
       >
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-black/6 via-black/5 to-black/10"
+          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-black/22 via-black/18 to-black/28"
         />
 
-        <span className="absolute left-1.5 top-1 z-[1] font-mono text-[10px] tracking-tight text-white/65 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">
+        <span className="absolute left-1.5 top-1 z-[1] font-mono text-[10px] tracking-tight text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
           {cell.id}
         </span>
 
@@ -155,10 +155,10 @@ function CellBase({ cell, isActive }: Props) {
           </span>
         )}
 
-        <span className="relative z-[1] mt-2 line-clamp-1 text-[10px] font-semibold leading-[1.2] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] sm:mt-2.5 sm:text-[11px] sm:line-clamp-2">
+        <span className="relative z-[1] mt-1.5 line-clamp-2 px-1 text-[10px] font-semibold leading-[1.2] text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.85)] sm:text-[11px] md:text-[12px]">
           {cell.name}
         </span>
-        <span className="relative z-[1] hidden text-[9px] font-normal italic leading-none text-white/75 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] md:block">
+        <span className="relative z-[1] hidden px-1 text-[9px] italic leading-none text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] md:block">
           {cell.original}
         </span>
 

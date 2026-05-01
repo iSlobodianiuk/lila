@@ -24,6 +24,7 @@ function HomeContent() {
   const continueId = searchParams.get("continue");
   const [onboardingReady, setOnboardingReady] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const [desktopPanelTab, setDesktopPanelTab] = useState<"chat" | "faq">("chat");
 
   const {
     state,
@@ -259,13 +260,13 @@ function HomeContent() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen min-h-0 w-full max-w-[1800px] flex-col gap-5 px-2 py-6 sm:gap-8 sm:px-4 sm:py-10 lg:px-5">
-      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <header className="flex flex-1 flex-col items-center gap-2 text-center sm:items-start sm:text-left">
+    <main className="flex min-h-screen w-full flex-col gap-5 py-6 sm:gap-8 sm:py-8 md:h-[100dvh] md:gap-4 md:overflow-hidden md:py-4">
+      <div className="flex w-full flex-col gap-3 px-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-4 md:gap-2 lg:px-5">
+        <header className="flex flex-1 flex-col items-center gap-2 text-center sm:items-start sm:text-left md:gap-1">
           <span className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
             ЛІЛА · LEELA
           </span>
-          <h1 className="font-display text-2xl text-stone-800 sm:text-4xl">Гра Ліла онлайн</h1>
+          <h1 className="font-display text-2xl text-stone-800 sm:text-3xl lg:text-4xl">Гра Ліла онлайн</h1>
         </header>
         <div className="flex shrink-0 justify-end sm:pt-1">
           <AppHeader />
@@ -282,34 +283,99 @@ function HomeContent() {
           onAppendMessage={appendChatMessage}
         />
       ) : (
-        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 lg:h-[calc(100dvh-190px)] lg:grid-cols-[7fr_3fr] lg:items-stretch lg:gap-5">
+        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 md:h-full md:grid-cols-[7fr_3fr] md:items-stretch md:gap-4 lg:grid-cols-[7.2fr_2.8fr]">
           <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <GameBoard position={state.position} />
+            </div>
+          </div>
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="mb-3 hidden rounded-2xl border border-white/45 bg-white/60 p-1 shadow-[0_16px_40px_-28px_rgba(120,90,60,0.45)] backdrop-blur-xl md:inline-flex">
+              <button
+                type="button"
+                onClick={() => setDesktopPanelTab("chat")}
+                className={`min-h-10 flex-1 rounded-xl px-3 text-sm font-medium transition ${
+                  desktopPanelTab === "chat"
+                    ? "bg-stone-900 text-stone-50 shadow-sm"
+                    : "text-stone-600 hover:bg-white/70 hover:text-stone-800"
+                }`}
+              >
+                Чат
+              </button>
+              <button
+                type="button"
+                onClick={() => setDesktopPanelTab("faq")}
+                className={`min-h-10 flex-1 rounded-xl px-3 text-sm font-medium transition ${
+                  desktopPanelTab === "faq"
+                    ? "bg-stone-900 text-stone-50 shadow-sm"
+                    : "text-stone-600 hover:bg-white/70 hover:text-stone-800"
+                }`}
+              >
+                FAQ
+              </button>
+            </div>
             {state.fixedPlayerRequest && (
               <section className="mb-3 rounded-2xl border border-amber-200/70 bg-amber-50/65 px-4 py-3">
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-800/90">
                   Твій запит
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-stone-700">{state.fixedPlayerRequest}</p>
+                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-stone-700">{state.fixedPlayerRequest}</p>
               </section>
             )}
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <GameBoard position={state.position} />
+            <div className="min-h-0 flex-1">
+              <div className={`h-full ${desktopPanelTab === "chat" ? "md:block" : "md:hidden"}`}>
+                <GamePanel
+                  state={state}
+                  onRoll={rollDice}
+                  onReset={reset}
+                  onQueryChange={setPlayerQuery}
+                  onAppendMessage={appendChatMessage}
+                />
+              </div>
+              <section
+                className={`hidden h-full rounded-3xl border border-white/45 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.32)] backdrop-blur-xl sm:p-6 ${
+                  desktopPanelTab === "faq" ? "md:block md:overflow-y-auto" : "md:hidden"
+                }`}
+              >
+                <h2 className="font-display text-2xl text-stone-800 sm:text-3xl">Поширені питання</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-1">
+                  <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+                    <h3 className="text-sm font-semibold text-stone-800">Що таке гра Ліла?</h3>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Це простір для уважного дослідження запиту через гру, діалог і рух по дошці.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+                    <h3 className="text-sm font-semibold text-stone-800">Навіщо формулювати запит перед входом?</h3>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Чим точніше й чесніше сформульований запит, тим глибше та ясніше може пройти гра.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+                    <h3 className="text-sm font-semibold text-stone-800">Що означає, якщо не випадає 6?</h3>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Це означає, що запит ще уточнюється. Провідник допомагає побачити його ясніше.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+                    <h3 className="text-sm font-semibold text-stone-800">Що робити під час гри?</h3>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Слідкуй за ходом, кидай кубик, відповідай на питання провідника і спостерігай за тим, як
+                      розкривається твій процес.
+                    </p>
+                  </article>
+                </div>
+                <footer className="pt-4 text-center text-[10px] tracking-wide text-stone-400 sm:text-[11px]">
+                  Базується на канонічній дошці 72 клітинок Гариша Джогарі.
+                </footer>
+              </section>
             </div>
-          </div>
-          <div className="min-h-0 min-w-0">
-            <GamePanel
-              state={state}
-              onRoll={rollDice}
-              onReset={reset}
-              onQueryChange={setPlayerQuery}
-              onAppendMessage={appendChatMessage}
-            />
           </div>
         </div>
       )}
 
       {state.phase !== "entry" && (
-        <section className="rounded-3xl border border-white/45 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.32)] backdrop-blur-xl sm:p-6">
+        <section className="rounded-3xl border border-white/45 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.32)] backdrop-blur-xl sm:p-6 md:hidden">
           <h2 className="font-display text-2xl text-stone-800 sm:text-3xl">Поширені питання</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
@@ -341,7 +407,7 @@ function HomeContent() {
         </section>
       )}
 
-      <footer className="pb-1 text-center text-[10px] tracking-wide text-stone-400 sm:pb-2 sm:text-[11px]">
+      <footer className="pb-1 text-center text-[10px] tracking-wide text-stone-400 sm:pb-2 sm:text-[11px] md:hidden">
         Базується на канонічній дошці 72 клітинок Гариша Джогарі.
       </footer>
     </main>

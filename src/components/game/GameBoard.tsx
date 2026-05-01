@@ -11,7 +11,6 @@ type Props = {
 };
 
 const DEFAULT_SCALE = 1;
-const MIN_SCALE = DEFAULT_SCALE;
 const MAX_SCALE = 2.6;
 const SCALE_STEP = 0.08;
 const AUTO_FOCUS_COOLDOWN_MS = 900;
@@ -26,22 +25,7 @@ type StripedSnakeDecorationSpec = Readonly<{
 
 /** Декоративні смугасті змії на дошці: голова → хвіст (лише візуал). */
 const STRIPED_SNAKE_DECORATIONS: ReadonlyArray<StripedSnakeDecorationSpec> = [
-  { headCell: 12, tailCell: 8 },
-  { headCell: 16, tailCell: 4 },
-  { headCell: 24, tailCell: 7 },
-  { headCell: 29, tailCell: 5 },
-  { headCell: 44, tailCell: 9 },
-  { headCell: 52, tailCell: 35 },
-  { headCell: 61, tailCell: 13 },
-  {
-    headCell: 63,
-    tailCell: 2,
-    chordSquash: 0.74,
-    imgFilter: "hue-rotate(175deg) saturate(0.62) brightness(1.06) contrast(1.1)",
-    overlayOpacity: 0.92,
-  },
-  { headCell: 55, tailCell: 3 },
-  { headCell: 72, tailCell: 51 },
+  // Тимчасово приховано за запитом UX: змії не рендеримо.
 ];
 
 type Point = { x: number; y: number };
@@ -60,6 +44,7 @@ export function GameBoard({ position }: Props) {
   const rafRef = useRef<number | null>(null);
 
   const [scaleUi, setScaleUi] = useState(DEFAULT_SCALE);
+  const [minScaleUi, setMinScaleUi] = useState(DEFAULT_SCALE);
   const [isDraggingUi, setIsDraggingUi] = useState(false);
   const [stripedSnakeLayout, setStripedSnakeLayout] = useState<{
     items: ReadonlyArray<{
@@ -74,7 +59,20 @@ export function GameBoard({ position }: Props) {
     h: number;
   } | null>(null);
   const scaleRef = useRef(DEFAULT_SCALE);
+  const minScaleRef = useRef(DEFAULT_SCALE);
   const offsetRef = useRef<Point>({ x: 0, y: 0 });
+
+  const calculateFitScale = useCallback(() => {
+    const viewport = viewportRef.current;
+    const zoom = zoomLayerRef.current;
+    if (!viewport || !zoom) return DEFAULT_SCALE;
+    const boardWidth = zoom.offsetWidth;
+    const boardHeight = zoom.offsetHeight;
+    if (boardWidth < 1 || boardHeight < 1) return DEFAULT_SCALE;
+    const fitScale = Math.min(viewport.clientWidth / boardWidth, viewport.clientHeight / boardHeight);
+    if (!Number.isFinite(fitScale) || fitScale <= 0) return DEFAULT_SCALE;
+    return fitScale;
+  }, []);
 
   const measureStripedSnakes = useCallback(() => {
     const root = gridOverlayRef.current;
@@ -193,7 +191,9 @@ export function GameBoard({ position }: Props) {
 
   const commitViewport = useCallback(
     (nextScale: number, nextOffset: Point, animate: boolean) => {
-      const boundedScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+      const minScale = minScaleRef.current;
+      const maxScale = Math.max(MAX_SCALE, minScale);
+      const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
       scaleRef.current = boundedScale;
       offsetRef.current = clampOffset(nextOffset, boundedScale);
       setScaleUi(boundedScale);
@@ -204,7 +204,9 @@ export function GameBoard({ position }: Props) {
 
   const applyScaleAtPoint = useCallback(
     (nextScale: number, point: { clientX: number; clientY: number }, animate: boolean) => {
-      const boundedScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+      const minScale = minScaleRef.current;
+      const maxScale = Math.max(MAX_SCALE, minScale);
+      const boundedScale = Math.min(maxScale, Math.max(minScale, nextScale));
       const viewportRect = viewportRef.current?.getBoundingClientRect();
       if (!viewportRect) {
         commitViewport(boundedScale, offsetRef.current, animate);
@@ -226,8 +228,20 @@ export function GameBoard({ position }: Props) {
   );
 
   const resetView = useCallback(() => {
-    commitViewport(DEFAULT_SCALE, { x: 0, y: 0 }, true);
+    commitViewport(minScaleRef.current, { x: 0, y: 0 }, true);
   }, [commitViewport]);
+
+  const syncFitScale = useCallback(
+    (resetToFit: boolean, animate: boolean) => {
+      const fitScale = calculateFitScale();
+      minScaleRef.current = fitScale;
+      setMinScaleUi(fitScale);
+      const targetScale = resetToFit ? fitScale : Math.max(scaleRef.current, fitScale);
+      const targetOffset = resetToFit ? { x: 0, y: 0 } : offsetRef.current;
+      commitViewport(targetScale, targetOffset, animate);
+    },
+    [calculateFitScale, commitViewport],
+  );
 
   const focusOnCell = useCallback(
     (cellId: number, animate: boolean) => {
@@ -284,11 +298,23 @@ export function GameBoard({ position }: Props) {
 
   useEffect(() => {
     const onResize = () => {
-      commitViewport(scaleRef.current, offsetRef.current, false);
+      syncFitScale(false, false);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [commitViewport]);
+  }, [syncFitScale]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const zoom = zoomLayerRef.current;
+    if (!viewport || !zoom) return;
+    const ro = new ResizeObserver(() => {
+      syncFitScale(false, false);
+    });
+    ro.observe(viewport);
+    ro.observe(zoom);
+    return () => ro.disconnect();
+  }, [syncFitScale]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -301,14 +327,14 @@ export function GameBoard({ position }: Props) {
   }, [handleWheelZoom]);
 
   useEffect(() => {
-    if (scaleRef.current <= DEFAULT_SCALE) return;
+    if (scaleRef.current <= minScaleRef.current) return;
     const now = Date.now();
     if (now - lastManualPanAtRef.current < AUTO_FOCUS_COOLDOWN_MS) return;
     focusOnCell(position, true);
   }, [focusOnCell, position]);
 
   useEffect(() => {
-    commitViewport(DEFAULT_SCALE, { x: 0, y: 0 }, false);
+    syncFitScale(true, false);
     return () => {
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
@@ -316,15 +342,15 @@ export function GameBoard({ position }: Props) {
     };
     // Лише початковий стан; не прив’язувати до commitViewport — інакше зайві скидання при зміні замикань.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [syncFitScale]);
 
   const viewportClass = useMemo(() => {
-    if (scaleUi <= DEFAULT_SCALE) return "cursor-default";
+    if (scaleUi <= minScaleUi) return "cursor-default";
     return isDraggingUi ? "cursor-grabbing" : "cursor-grab";
-  }, [isDraggingUi, scaleUi]);
+  }, [isDraggingUi, minScaleUi, scaleUi]);
 
   return (
-    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-1 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-3">
+    <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-1 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-2">
       <div className="mb-2 flex items-center justify-between px-1 sm:mb-3 sm:px-0">
         <p className="text-[11px] text-stone-500 sm:text-xs">Жест: pinch/drag для навігації дошкою</p>
         <div className="flex items-center gap-1">
@@ -364,9 +390,9 @@ export function GameBoard({ position }: Props) {
       <div
         ref={viewportRef}
         className={`relative min-h-0 flex-1 overflow-hidden rounded-2xl select-none ${viewportClass}`}
-        style={{ touchAction: scaleUi > DEFAULT_SCALE ? "none" : "pan-y pinch-zoom" }}
+        style={{ touchAction: scaleUi > minScaleUi ? "none" : "pan-y pinch-zoom" }}
         onPointerDown={(event) => {
-          if (scaleRef.current <= DEFAULT_SCALE) return;
+          if (scaleRef.current <= minScaleRef.current) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
           dragActiveRef.current = true;
@@ -415,7 +441,7 @@ export function GameBoard({ position }: Props) {
             pinchStartRef.current = { distance, scale: scaleRef.current };
             return;
           }
-          if (event.touches.length === 1 && scaleRef.current > DEFAULT_SCALE) {
+          if (event.touches.length === 1 && scaleRef.current > minScaleRef.current) {
             const touch = event.touches[0];
             panStartRef.current = {
               x: touch.clientX - offsetRef.current.x,
@@ -431,7 +457,7 @@ export function GameBoard({ position }: Props) {
             commitViewport(pinchStartRef.current.scale * ratio, offsetRef.current, false);
             return;
           }
-          if (event.touches.length === 1 && panStartRef.current && scaleRef.current > DEFAULT_SCALE) {
+          if (event.touches.length === 1 && panStartRef.current && scaleRef.current > minScaleRef.current) {
             const touch = event.touches[0];
             offsetRef.current = clampOffset(
               {
@@ -450,23 +476,24 @@ export function GameBoard({ position }: Props) {
           setScaleUi(scaleRef.current);
         }}
       >
-        <div
-          ref={panLayerRef}
-          className="mx-auto w-full max-w-none"
-        >
+        <div ref={panLayerRef} className="w-full">
           <div
             ref={zoomLayerRef}
+            className="w-full aspect-[3/2]"
             style={{ transform: "scale(1)", transformOrigin: "center center" }}
           >
             <div
-              className="relative overflow-hidden rounded-2xl"
+              className="relative h-full w-full overflow-hidden rounded-2xl"
               style={{
                 background:
                   "linear-gradient(135deg, #0a2a3a 0%, #0d3b4f 30%, #1a5c6b 60%, #0e3347 100%)",
               }}
             >
               <LeelaboardBackground />
-              <div ref={gridOverlayRef} className="relative isolate z-10 grid grid-cols-9 gap-1 p-[15px]">
+              <div
+                ref={gridOverlayRef}
+                className="relative isolate z-10 grid h-full w-full grid-cols-9 grid-rows-8 gap-1.5 p-1.5 sm:gap-2 sm:p-2"
+              >
                 {stripedSnakeLayout?.items.map((item) => (
                   <StripedSnakeOverlay
                     key={item.key}
