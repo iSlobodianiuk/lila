@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { getLeelaMaxOutputTokens } from "@/lib/leela-ai-limits";
 import { auth } from "@/auth";
 import { sendGameResultEmail } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
@@ -91,7 +92,7 @@ export async function POST(_req: Request, { params }: RouteParams) {
     const result = await generateText({
       model: openai(process.env.LEELA_MODEL ?? "gpt-4o-mini"),
       prompt: userPrompt,
-      maxOutputTokens: 1200,
+      maxOutputTokens: getLeelaMaxOutputTokens("complete"),
     });
     const parsed = parseFinalModelOutput(result.text);
     finalSummary = parsed.finalSummary;

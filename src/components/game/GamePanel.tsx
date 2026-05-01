@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { GOAL_CELL, getCell } from "@/lib/board-data";
-import { CELL_DESCRIPTIONS } from "@/src/data/cellDescriptions";
 import type { ChatMessage, GameState } from "@/lib/types";
 import { Dice } from "@/components/dice";
+import { getGuideResponse } from "@/src/app/actions/guide";
 
 type AppendChatPayload = Omit<ChatMessage, "id" | "createdAt"> & { createdAt?: string };
+type GuideMessage = { role: "user" | "assistant"; content: string };
 
 type Props = {
   state: GameState;
@@ -19,95 +20,99 @@ type Props = {
 
 export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessage }: Props) {
   const [draftMessage, setDraftMessage] = useState("");
-  const [cellAiLoading, setCellAiLoading] = useState(false);
-  const cellFetchAbort = useRef<AbortController | null>(null);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [messages, setMessages] = useState<GuideMessage[]>(
+    state.chatMessages.map((m) => ({ role: m.role, content: m.content })),
+  );
+  const introSentRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const cell = state.position > 0 ? getCell(state.position) : null;
 
   useEffect(() => {
-    if (state.phase !== "playing" && state.phase !== "finished") return;
-    if (state.isRolling || state.position < 1) return;
-    if (state.chatMessages.some((m) => m.kind === "cell" && m.cellId === state.position)) {
-      setCellAiLoading(false);
+    if (messages.length > 0) return;
+    if (state.chatMessages.length === 0) return;
+    setMessages(state.chatMessages.map((m) => ({ role: m.role, content: m.content })));
+  }, [messages.length, state.chatMessages]);
+
+  const streamAssistantText = async (text: string) => {
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    let buffer = "";
+    for (const chunk of text) {
+      buffer += chunk;
+      setMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const next = [...prev];
+        next[next.length - 1] = { role: "assistant", content: buffer };
+        return next;
+      });
+      await Promise.resolve();
+    }
+    return buffer;
+  };
+
+  const requestGuideReply = async (history: GuideMessage[], kind: "entry" | "cell") => {
+    const playerQuestion = state.fixedPlayerRequest ?? state.playerQuery ?? "";
+    const currentCellName = state.gameHistory[state.gameHistory.length - 1]?.cellName ?? "Невідома клітинка";
+    const recentMessages = history.slice(-6).map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, 100),
+    }));
+
+    setGuideLoading(true);
+    const result = await getGuideResponse(recentMessages, {
+      cellNumber: state.position,
+      cellName: currentCellName,
+      playerQuestion,
+      moveCount: state.gameHistory.length,
+    });
+    if ("error" in result) {
+      const fallback = result.error;
+      const finalText = await streamAssistantText(fallback);
+      onAppendMessage({
+        role: "assistant",
+        content: finalText,
+        kind,
+        cellId: state.position > 0 ? state.position : undefined,
+      });
+      setGuideLoading(false);
       return;
     }
+    const finalText = await streamAssistantText(result.text);
+    onAppendMessage({
+      role: "assistant",
+      content: finalText,
+      kind,
+      cellId: state.position > 0 ? state.position : undefined,
+    });
+    setGuideLoading(false);
+  };
 
-    cellFetchAbort.current?.abort();
-    const ac = new AbortController();
-    cellFetchAbort.current = ac;
-    setCellAiLoading(true);
-
-    const cellData = getCell(state.position);
-    if (!cellData) {
-      setCellAiLoading(false);
-      return;
-    }
-    const desc = CELL_DESCRIPTIONS[state.position]?.description ?? cellData.description;
-
-    (async () => {
-      try {
-        const req = state.fixedPlayerRequest ?? state.playerQuery;
-        const res = await fetch("/api/leela/cell", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            playerRequest: req,
-            cellId: cellData.id,
-            cellName: cellData.name,
-            cellDescription: desc,
-          }),
-          signal: ac.signal,
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as { text?: string };
-        if (data.text) {
-          onAppendMessage({
-            role: "assistant",
-            content: data.text,
-            kind: "cell",
-            cellId: cellData.id,
-          });
-        }
-      } catch (e) {
-        if ((e as Error).name === "AbortError") return;
-        onAppendMessage({
-          role: "assistant",
-          content: `Що для тебе означає потрапляння на «${cellData.name}» у зв’язку з твоїм запитом? Що ти вперше зауважив про ситуацію, коли тут зупинився?`,
-          kind: "cell",
-          cellId: cellData.id,
-        });
-      } finally {
-        if (!ac.signal.aborted) setCellAiLoading(false);
-      }
-    })();
-
-    return () => ac.abort();
-  }, [
-    state.phase,
-    state.isRolling,
-    state.position,
-    state.chatMessages,
-    onAppendMessage,
-    state.fixedPlayerRequest,
-    state.playerQuery,
-  ]);
+  useEffect(() => {
+    const playerQuestion = state.fixedPlayerRequest ?? state.playerQuery;
+    if (introSentRef.current) return;
+    if (!playerQuestion?.trim()) return;
+    if (messages.length > 0) return;
+    introSentRef.current = true;
+    void requestGuideReply([{ role: "user", content: "Починаємо гру" }], "entry");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.fixedPlayerRequest, state.playerQuery, messages.length]);
 
   const showFinalLoading = state.phase === "finished" && !state.finalSummary && !state.completionSynced;
 
   const latestAssistantCellIndex = useMemo(() => {
-    for (let i = state.chatMessages.length - 1; i >= 0; i -= 1) {
-      const message = state.chatMessages[i];
-      if (message.role === "assistant" && message.kind === "cell") return i;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.role === "assistant") return i;
     }
     return -1;
-  }, [state.chatMessages]);
+  }, [messages]);
 
   const latestUserIndex = useMemo(() => {
-    for (let i = state.chatMessages.length - 1; i >= 0; i -= 1) {
-      if (state.chatMessages[i].role === "user") return i;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === "user") return i;
     }
     return -1;
-  }, [state.chatMessages]);
+  }, [messages]);
 
   const needsUserReply =
     latestAssistantCellIndex !== -1 &&
@@ -123,11 +128,14 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [state.chatMessages, state.isRolling, cellAiLoading, showFinalLoading]);
+  }, [messages, state.isRolling, guideLoading, showFinalLoading]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const message = draftMessage.trim();
     if (!message) return;
+    const userMessage: GuideMessage = { role: "user", content: message };
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     onAppendMessage({
       role: "user",
       content: message,
@@ -136,6 +144,7 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
     });
     onQueryChange(message);
     setDraftMessage("");
+    await requestGuideReply(nextMessages, state.phase === "entry" ? "entry" : "cell");
   };
 
   return (
@@ -167,15 +176,15 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
         </header>
 
         <div className="min-h-0 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
-          {state.chatMessages.length === 0 && (
+          {messages.length === 0 && (
             <p className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/80 px-3 py-2 text-sm text-stone-500">
               Поки що немає повідомлень. Кинь кубик, щоб почати діалог на полі.
             </p>
           )}
 
-          {state.chatMessages.map((message) => (
+          {messages.map((message, idx) => (
             <div
-              key={message.id}
+              key={`${idx}-${message.role}`}
               className={`flex ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
             >
               <div
@@ -190,10 +199,10 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
             </div>
           ))}
 
-          {cellAiLoading && (
+          {guideLoading && (
             <div className="flex justify-start">
               <p className="rounded-2xl border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
-                Провідник формулює питання для клітинки {state.position}…
+                Провідник відповідає…
               </p>
             </div>
           )}

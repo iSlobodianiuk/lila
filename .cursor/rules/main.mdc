@@ -11,7 +11,9 @@ alwaysApply: true
 - Tailwind CSS 3.4.1 — НЕ використовувати `@import "tailwindcss"`
 - Prisma + PostgreSQL
 - NextAuth v5 (Auth.js) — імпорти з `next-auth`, не зі старих версій
-- ЗАБОРОНЕНО: Next.js 16, Turbopack
+- Vercel AI SDK (`ai` + `@ai-sdk/openai`) — для всіх AI викликів
+- ЗАБОРОНЕНО: Next.js 16, Turbopack, пряме звернення до OpenAI API без AI SDK
+
 
 ## Стиль коду
 - Компоненти — тільки functional components з TypeScript типами
@@ -20,18 +22,44 @@ alwaysApply: true
 - API routes — тільки для read операцій (GET) та complete flow
 - Завжди додавати обробку помилок (try/catch в Server Actions)
 
+
 ## Архітектура проєкту
 - Ігрова логіка → `src/utils/gameRules.ts`
 - Типи → `src/types/game.ts`
 - Константи змій/стріл → `src/data/snakesAndArrows.ts`
 - Центральний стан гри → `hooks/use-leela-game.ts`
 - Server Actions → `src/app/actions/game.ts`
+- AI провідник (Server Action) → `src/app/actions/guide.ts`
+- AI ліміти токенів → `lib/leela-ai-limits.ts`
+
+
+## AI провідник — правила
+- Модель: `openai(process.env.LEELA_MODEL ?? 'gpt-4o-mini')` — не хардкодити назву моделі
+- Всі ліміти токенів — тільки через `getLeelaMaxOutputTokens()` з `lib/leela-ai-limits.ts`, не хардкодити числа
+- Провідник живе в чаті (правий сайдбар) — не виносити як окрему кнопку поза чатом
+- Передавати в AI тільки останні 6 повідомлень (`messages.slice(-6)`)
+- Обрізати кожне повідомлення до 100 символів перед відправкою (`content.slice(0, 100)`)
+- Перший меседж провідника — автоматично при старті чату через `useEffect`
+- НЕ робити AI виклики автоматично при кожному ході — тільки у відповідь на повідомлення гравця
+
+
+## Змінні середовища для AI
+- OPENAI_API_KEY= # обов'язково
+- LEELA_MODEL=gpt-4o-mini # опційно, є дефолт
+- LEELA_MAX_TOKENS_GUIDE= # опційно, є дефолти в lib/leela-ai-limits.ts
+- LEELA_MAX_TOKENS_ENTRY=
+- LEELA_MAX_TOKENS_CELL=
+- LEELA_MAX_TOKENS_COMPLETE=
+
+
 
 ## Правила для змін
 - Перед великим рефакторингом — запитай підтвердження
 - Не чіпай API routes `/api/games` і `/api/games/[id]/complete` без явної вказівки
 - Не змінюй карту змій і стріл у `snakesAndArrows.ts` — вона фінальна
 - При зміні `use-leela-game.ts` — мінімальний ризик регресій
+- При зміні `guide.ts` або `leela-ai-limits.ts` — перевір що ліміти токенів не захардкоджені
+
 
 ## Контекст розробника
 - Я займаюсь вайб-кодингом — пояснюй зміни коротко і зрозуміло

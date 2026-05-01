@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { getLeelaMaxOutputTokens } from "@/lib/leela-ai-limits";
 import { buildCellInsightUserPrompt, fillSystemPrompt } from "@/src/prompts/leela";
 
 export const runtime = "nodejs";
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     model: openai(process.env.LEELA_MODEL ?? "gpt-4o-mini"),
     system,
     prompt: user,
-    maxOutputTokens: 600,
+    maxOutputTokens: getLeelaMaxOutputTokens("cell"),
   });
 
   return NextResponse.json({ text: result.text });
