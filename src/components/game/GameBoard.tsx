@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BOARD_GRID } from "@/lib/board-layout";
 import { LeelaboardBackground } from "./LeelaboardBackground";
 import { Cell } from "./Cell";
+import { StripedSnakeOverlay } from "./StripedSnakeOverlay";
 
 type Props = {
   position: number;
@@ -15,6 +16,34 @@ const MAX_SCALE = 2.6;
 const SCALE_STEP = 0.08;
 const AUTO_FOCUS_COOLDOWN_MS = 900;
 
+type StripedSnakeDecorationSpec = Readonly<{
+  headCell: number;
+  tailCell: number;
+  chordSquash?: number;
+  imgFilter?: string;
+  overlayOpacity?: number;
+}>;
+
+/** Декоративні смугасті змії на дошці: голова → хвіст (лише візуал). */
+const STRIPED_SNAKE_DECORATIONS: ReadonlyArray<StripedSnakeDecorationSpec> = [
+  { headCell: 12, tailCell: 8 },
+  { headCell: 16, tailCell: 4 },
+  { headCell: 24, tailCell: 7 },
+  { headCell: 29, tailCell: 5 },
+  { headCell: 44, tailCell: 9 },
+  { headCell: 52, tailCell: 35 },
+  { headCell: 61, tailCell: 13 },
+  {
+    headCell: 63,
+    tailCell: 2,
+    chordSquash: 0.74,
+    imgFilter: "hue-rotate(175deg) saturate(0.62) brightness(1.06) contrast(1.1)",
+    overlayOpacity: 0.92,
+  },
+  { headCell: 55, tailCell: 3 },
+  { headCell: 72, tailCell: 51 },
+];
+
 type Point = { x: number; y: number };
 
 export function GameBoard({ position }: Props) {
@@ -23,6 +52,7 @@ export function GameBoard({ position }: Props) {
   const panLayerRef = useRef<HTMLDivElement | null>(null);
   /** Лише scale; текст усередині — компроміс: CSS scale все одно може злегка згладжувати шрифт, але без `will-change` і з розділенням pan/zoom артефакти менші. */
   const zoomLayerRef = useRef<HTMLDivElement | null>(null);
+  const gridOverlayRef = useRef<HTMLDivElement | null>(null);
   const panStartRef = useRef<Point | null>(null);
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null);
   const dragActiveRef = useRef(false);
@@ -31,8 +61,71 @@ export function GameBoard({ position }: Props) {
 
   const [scaleUi, setScaleUi] = useState(DEFAULT_SCALE);
   const [isDraggingUi, setIsDraggingUi] = useState(false);
+  const [stripedSnakeLayout, setStripedSnakeLayout] = useState<{
+    items: ReadonlyArray<{
+      key: string;
+      head: Point;
+      tail: Point;
+      chordSquash?: number;
+      imgFilter?: string;
+      overlayOpacity?: number;
+    }>;
+    w: number;
+    h: number;
+  } | null>(null);
   const scaleRef = useRef(DEFAULT_SCALE);
   const offsetRef = useRef<Point>({ x: 0, y: 0 });
+
+  const measureStripedSnakes = useCallback(() => {
+    const root = gridOverlayRef.current;
+    if (!root) return;
+    const r = root.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+
+    const normCenter = (el: HTMLElement) => {
+      const cr = el.getBoundingClientRect();
+      return {
+        x: (cr.left + cr.width / 2 - r.left) / r.width,
+        y: (cr.top + cr.height / 2 - r.top) / r.height,
+      };
+    };
+
+    const items: {
+      key: string;
+      head: Point;
+      tail: Point;
+      chordSquash?: number;
+      imgFilter?: string;
+      overlayOpacity?: number;
+    }[] = [];
+    for (const spec of STRIPED_SNAKE_DECORATIONS) {
+      const { headCell, tailCell, chordSquash, imgFilter, overlayOpacity } = spec;
+      const headEl = root.querySelector<HTMLElement>(`[data-cell-id="${headCell}"]`);
+      const tailEl = root.querySelector<HTMLElement>(`[data-cell-id="${tailCell}"]`);
+      if (!headEl || !tailEl) continue;
+      items.push({
+        key: `${headCell}-${tailCell}`,
+        head: normCenter(headEl),
+        tail: normCenter(tailEl),
+        chordSquash,
+        imgFilter,
+        overlayOpacity,
+      });
+    }
+
+    setStripedSnakeLayout(items.length === 0 ? null : { items, w: r.width, h: r.height });
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = gridOverlayRef.current;
+    if (!root) return;
+    measureStripedSnakes();
+    const ro = new ResizeObserver(() => {
+      measureStripedSnakes();
+    });
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [measureStripedSnakes]);
 
   const applyTransform = useCallback((animate: boolean) => {
     const pan = panLayerRef.current;
@@ -256,14 +349,14 @@ export function GameBoard({ position }: Props) {
             onClick={() => focusOnCell(position, true)}
             className="rounded-full border border-stone-200 bg-white/80 px-2 py-1 text-[10px] font-medium text-stone-700 transition hover:bg-white sm:text-xs"
           >
-            Find me
+            Знайти мене
           </button>
           <button
             type="button"
             onClick={resetView}
             className="rounded-full border border-stone-200 bg-white/80 px-2 py-1 text-[10px] font-medium text-stone-700 transition hover:bg-white sm:text-xs"
           >
-            Reset
+            Скинути
           </button>
         </div>
       </div>
@@ -373,7 +466,20 @@ export function GameBoard({ position }: Props) {
               }}
             >
               <LeelaboardBackground />
-              <div className="relative z-10 grid grid-cols-9 gap-1 p-[15px]">
+              <div ref={gridOverlayRef} className="relative isolate z-10 grid grid-cols-9 gap-1 p-[15px]">
+                {stripedSnakeLayout?.items.map((item) => (
+                  <StripedSnakeOverlay
+                    key={item.key}
+                    headOnBoard={item.head}
+                    tailOnBoard={item.tail}
+                    overlayWidthPx={stripedSnakeLayout.w}
+                    overlayHeightPx={stripedSnakeLayout.h}
+                    className="z-0"
+                    opacity={item.overlayOpacity ?? 0.96}
+                    chordSquash={item.chordSquash ?? 1}
+                    imgFilter={item.imgFilter}
+                  />
+                ))}
                 {BOARD_GRID.flat().map((cell) => (
                   <Cell key={cell.id} cell={cell} isActive={cell.id === position} />
                 ))}

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { GOAL_CELL, getCell } from "@/lib/board-data";
 import { CELL_DESCRIPTIONS } from "@/src/data/cellDescriptions";
-import { generateInsight } from "@/lib/insights";
 import type { GameState } from "@/lib/types";
 import { Dice } from "@/components/dice";
 
@@ -17,20 +16,11 @@ type Props = {
 };
 
 export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessage }: Props) {
-  const cell = state.position > 0 ? getCell(state.position) : null;
-  const cellNarrative =
-    state.position > 0 ? CELL_DESCRIPTIONS[state.position] : null;
-  const [insight, setInsight] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState("");
   const [cellAiLoading, setCellAiLoading] = useState(false);
   const cellFetchAbort = useRef<AbortController | null>(null);
-
-  const playerRequestForAi = state.fixedPlayerRequest ?? state.playerQuery;
-
-  const cellAiMessage = useMemo(() => {
-    return [...state.chatMessages]
-      .reverse()
-      .find((m) => m.kind === "cell" && m.cellId === state.position);
-  }, [state.chatMessages, state.position]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const cell = state.position > 0 ? getCell(state.position) : null;
 
   useEffect(() => {
     if (state.phase !== "playing" && state.phase !== "finished") return;
@@ -100,194 +90,181 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
     state.playerQuery,
   ]);
 
+  const showFinalLoading = state.phase === "finished" && !state.finalSummary && !state.completionSynced;
+
+  const latestAssistantCellIndex = useMemo(() => {
+    for (let i = state.chatMessages.length - 1; i >= 0; i -= 1) {
+      const message = state.chatMessages[i];
+      if (message.role === "assistant" && message.kind === "cell") return i;
+    }
+    return -1;
+  }, [state.chatMessages]);
+
+  const latestUserIndex = useMemo(() => {
+    for (let i = state.chatMessages.length - 1; i >= 0; i -= 1) {
+      if (state.chatMessages[i].role === "user") return i;
+    }
+    return -1;
+  }, [state.chatMessages]);
+
+  const needsUserReply =
+    latestAssistantCellIndex !== -1 &&
+    latestAssistantCellIndex > latestUserIndex &&
+    state.phase !== "finished";
+
   const hint =
     state.phase === "finished"
-      ? "Ти дійшов до клітинки 68. Поділись відчуттям — що змінилось поглядом на запит."
-      : "Рухайтесь сходинками свідомості. Після кожного ходу — думка провідника щодо клітинки.";
+      ? "Гру завершено. Можеш завершити діалог або почати нову сесію."
+      : "Кинь кубик, щоб зробити наступний крок.";
 
-  const showFinalLoading =
-    state.phase === "finished" && !state.finalSummary && !state.completionSynced;
-
-  const transitionMessage = useMemo(() => {
-    if (!state.lastTransition) return null;
-    if (state.lastTransition.kind === "arrow") {
-      return `Стріла: підйом з ${state.lastTransition.from} на ${state.lastTransition.to}.`;
-    }
-    return `Змія: спуск з ${state.lastTransition.from} на ${state.lastTransition.to}.`;
-  }, [state.lastTransition]);
+  const diceDisabled = state.phase === "finished" || state.position >= GOAL_CELL || needsUserReply;
 
   useEffect(() => {
-    setInsight(null);
-  }, [state.position]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [state.chatMessages, state.isRolling, cellAiLoading, showFinalLoading]);
 
-  const handleInsight = () => {
-    if (!cell) return;
-    setInsight(generateInsight({ query: playerRequestForAi, cell }));
+  const handleSend = () => {
+    const message = draftMessage.trim();
+    if (!message) return;
+    onAppendMessage({
+      role: "user",
+      content: message,
+      kind: state.phase === "playing" || state.phase === "finished" ? "cell" : "entry",
+      cellId: state.position > 0 ? state.position : undefined,
+    });
+    onQueryChange(message);
+    setDraftMessage("");
   };
 
-  const diceDisabled = state.phase === "finished" || state.position >= GOAL_CELL;
-
   return (
-    <aside className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto overscroll-y-contain pr-1 sm:gap-5">
-      {state.chatMessages.length > 0 && (
-        <div className="max-h-40 overflow-y-auto rounded-2xl border border-stone-100 bg-white/50 p-2.5 text-[11px] leading-snug text-stone-600 sm:text-xs">
-          <div className="mb-1 font-medium text-stone-500">Переписка з провідником</div>
-          {state.chatMessages.map((m) => (
-            <p key={m.id} className="mb-1.5 border-b border-stone-100/80 pb-1.5 last:mb-0 last:border-0 last:pb-0">
-              {m.kind === "entry" && <span className="text-amber-800/80">[Вхід] </span>}
-              {m.kind === "cell" && m.cellId != null && (
-                <span className="text-sky-800/80">[№{m.cellId}] </span>
-              )}
-              {m.content}
-            </p>
-          ))}
+    <aside className="grid h-full min-h-0 grid-rows-[auto_1fr] gap-4 sm:gap-5">
+      <section className="rounded-3xl border border-white/40 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:p-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-stone-800">Крок гри</h3>
+          <p className="text-xs text-stone-500">Кинь кубик, щоб зробити наступний крок</p>
         </div>
-      )}
-
-      <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/40 bg-white/55 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:gap-4 sm:p-5">
         <Dice
           value={state.lastRoll}
           isRolling={state.isRolling}
           onRoll={onRoll}
           label="Кинути кубик"
-          hint={hint}
+          hint={needsUserReply ? "Спочатку дай відповідь провіднику в чаті" : hint}
           disabled={diceDisabled}
         />
-      </div>
+      </section>
 
-      <div className="flex flex-col gap-3 rounded-3xl border border-white/40 bg-white/55 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:gap-4 sm:p-5">
-        <div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">
-            Статус
+      <section className="grid min-h-0 grid-rows-[auto_1fr_auto] overflow-hidden rounded-3xl border border-white/40 bg-white/60 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl">
+        <header className="flex items-center justify-between border-b border-stone-200/70 px-4 py-3 sm:px-5">
+          <div>
+            <p className="text-sm font-semibold text-stone-800">Провідник</p>
+            <p className="text-xs text-stone-500">безперервний діалог від входу до завершення</p>
           </div>
-          <div className="mt-1 text-sm font-semibold text-stone-800 sm:text-base">
-            {state.phase === "finished"
-              ? "Гра завершена"
-              : state.hasEntered && cell
-                ? `Клітинка ${cell.id} · ${cell.name}`
-                : "—"}
-          </div>
-          {state.hasEntered && cell && (
-            <div className="mt-0.5 text-xs italic text-stone-500">{cell.original}</div>
+          <span className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] text-stone-600">
+            {state.phase === "finished" ? "Завершення" : "У процесі"}
+          </span>
+        </header>
+
+        <div className="min-h-0 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+          {state.chatMessages.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/80 px-3 py-2 text-sm text-stone-500">
+              Поки що немає повідомлень. Кинь кубик, щоб почати діалог на полі.
+            </p>
           )}
+
+          {state.chatMessages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
+            >
+              <div
+                className={`max-w-[88%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed shadow-sm sm:max-w-[80%] ${
+                  message.role === "assistant"
+                    ? "border border-stone-200/80 bg-stone-50 text-stone-700"
+                    : "bg-stone-900 text-stone-50"
+                }`}
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+
+          {cellAiLoading && (
+            <div className="flex justify-start">
+              <p className="rounded-2xl border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+                Провідник формулює питання для клітинки {state.position}…
+              </p>
+            </div>
+          )}
+
+          {showFinalLoading && (
+            <div className="flex justify-start">
+              <p className="rounded-2xl border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+                Готуємо підсумок гри та план дій…
+              </p>
+            </div>
+          )}
+
+          {state.phase === "finished" && (state.finalSummary || state.actionPlan) && (
+            <div className="space-y-2 rounded-2xl border border-stone-200/90 bg-stone-50/90 p-3">
+              {state.finalSummary && (
+                <p className="text-xs leading-relaxed text-stone-800">
+                  <span className="font-semibold text-stone-700">Висновок: </span>
+                  {state.finalSummary}
+                </p>
+              )}
+              {state.actionPlan && (
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-stone-800">
+                  <span className="font-semibold text-stone-700">План дій: </span>
+                  {state.actionPlan}
+                </p>
+              )}
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {state.hasEntered && cell && (
-          <div className="flex flex-col gap-2.5">
-            {cellAiLoading && (
-              <p className="text-xs text-amber-700/80">Провідник думає про цю клітинку…</p>
-            )}
-            {cellAiMessage && (
-              <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 p-2.5 sm:p-3">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-amber-800/90">
-                  Провідник (через твій запит)
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-stone-800">{cellAiMessage.content}</p>
-              </div>
-            )}
-            <p className="rounded-2xl bg-stone-50/70 p-2.5 text-xs leading-relaxed text-stone-600 sm:p-3">
-              {cell.description}
-            </p>
-            {cellNarrative && cellNarrative.questions.length > 0 && (
-              <div>
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
-                  Питання для роздумів
-                </div>
-                <ul className="list-inside list-disc space-y-1 rounded-2xl border border-stone-100/80 bg-white/50 p-2.5 text-xs leading-relaxed text-stone-600 sm:p-3">
-                  {cellNarrative.questions.map((q, i) => (
-                    <li key={i} className="pl-0.5">
-                      {q}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {cellNarrative?.insight && (
-              <p className="rounded-2xl border border-amber-100/90 bg-amber-50/50 p-2.5 text-xs font-medium leading-relaxed text-amber-950/80 sm:p-3">
-                {cellNarrative.insight}
-              </p>
-            )}
+        <div className="border-t border-stone-200/70 px-4 py-3 sm:px-5">
+          <div className="mb-2 flex items-center justify-between text-xs text-stone-500">
+            <span>
+              Клітинка: <span className="font-semibold text-stone-700">{cell ? `${cell.id}` : "—"}</span>
+            </span>
+            <span>
+              Кидків: <span className="font-semibold text-stone-700">{state.rollHistory.length}</span>
+            </span>
           </div>
-        )}
-
-        {showFinalLoading && (
-          <p className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-3 text-xs text-amber-900">
-            Готуємо фінальний підсумок і план дій. За кілька секунд результат з’явиться тут і буде надіслано на твою пошту.
-          </p>
-        )}
-
-        {state.phase === "finished" && (state.finalSummary || state.actionPlan) && (
-          <div className="flex flex-col gap-2 rounded-2xl border border-stone-200/90 bg-stone-50/90 p-3">
-            {state.finalSummary && (
-              <div>
-                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Висновок</div>
-                <p className="mt-1 text-xs leading-relaxed text-stone-800">{state.finalSummary}</p>
-              </div>
-            )}
-            {state.actionPlan && (
-              <div>
-                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">План дій (2 тижні)</div>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-stone-800">{state.actionPlan}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {state.hasEntered && cell && state.phase === "playing" && (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="player-query" className="text-xs font-medium text-stone-600">
-              Додати до запиту (необов’язково)
-            </label>
+          <div className="flex items-end gap-2">
             <textarea
-              id="player-query"
-              value={state.playerQuery}
-              onChange={(event) => {
-                onQueryChange(event.target.value);
-                if (insight) setInsight(null);
+              value={draftMessage}
+              onChange={(event) => setDraftMessage(event.target.value)}
+              placeholder="Напиши відповідь провіднику…"
+              className="min-h-[44px] max-h-28 w-full resize-none rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200/60"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSend();
+                }
               }}
-              placeholder="Короткі нотатки до свого фокусу…"
-              className="min-h-16 rounded-2xl border border-stone-200 bg-white/80 px-3 py-2 text-xs leading-relaxed text-stone-700 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200/60"
             />
             <button
               type="button"
-              onClick={handleInsight}
-              className="rounded-full bg-stone-900/90 px-4 py-2.5 text-xs font-medium text-stone-50 transition hover:bg-stone-900"
+              onClick={handleSend}
+              disabled={!draftMessage.trim()}
+              className="min-h-11 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Локальний ШІ-інсайт (патерни)
+              Надіслати
             </button>
-            {insight && (
-              <p className="rounded-2xl border border-amber-100 bg-amber-50/80 p-3 text-xs leading-relaxed text-stone-700">
-                {insight}
-              </p>
-            )}
-            {transitionMessage && (
-              <p className="rounded-2xl border border-sky-100 bg-sky-50/70 p-3 text-xs leading-relaxed text-sky-900">
-                {transitionMessage}
-              </p>
-            )}
           </div>
-        )}
 
-        <div className="flex items-center justify-between border-t border-white/60 pt-2.5 sm:pt-3">
-          <div className="text-xs text-stone-500">
-            Останній кидок:{" "}
-            <span className="font-semibold text-stone-700">{state.lastRoll ?? "—"}</span>
-          </div>
-          <div className="text-xs text-stone-500">
-            Кидків:{" "}
-            <span className="font-semibold text-stone-700">{state.rollHistory.length}</span>
-          </div>
+          <button
+            type="button"
+            onClick={onReset}
+            className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-stone-200 bg-white/70 px-4 py-2 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-800"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Почати спочатку
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-stone-200 bg-white/70 px-4 py-2 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-800"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Почати спочатку
-        </button>
-      </div>
+      </section>
     </aside>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { useSession } from "next-auth/react";
 import { AppHeader } from "@/components/app-header";
 import { useLeelaGame } from "@/hooks/use-leela-game";
 import { toPersistedChat } from "@/lib/serialize-game";
@@ -11,11 +12,18 @@ import { appendMoveForCurrentUser, createGameForCurrentUser } from "@/src/app/ac
 import { GameBoard } from "@/src/components/game/GameBoard";
 import { EntryPhase } from "@/src/components/game/EntryPhase";
 import { GamePanel } from "@/src/components/game/GamePanel";
+import { OnboardingFlow } from "@/src/components/onboarding/OnboardingFlow";
+import { PreAuthHero } from "@/src/components/onboarding/PreAuthHero";
+
+const ONBOARDING_STORAGE_KEY = "leela-onboarding-v1";
 
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const continueId = searchParams.get("continue");
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   const {
     state,
@@ -36,6 +44,32 @@ function HomeContent() {
   useEffect(() => {
     stateRef.current = state;
   });
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session) {
+      setOnboardingDone(false);
+      setOnboardingReady(true);
+      return;
+    }
+    try {
+      const saved = window.localStorage.getItem(ONBOARDING_STORAGE_KEY);
+      setOnboardingDone(saved === "done");
+    } catch {
+      setOnboardingDone(false);
+    } finally {
+      setOnboardingReady(true);
+    }
+  }, [session, status]);
+
+  const completeOnboarding = useCallback(() => {
+    try {
+      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "done");
+    } catch {
+      /* storage unavailable */
+    }
+    setOnboardingDone(true);
+  }, []);
 
   useEffect(() => {
     if (!continueId || continueLoadRef.current) return;
@@ -208,6 +242,22 @@ function HomeContent() {
     markCompletionSynced,
   ]);
 
+  if (status === "loading" || (session && !onboardingReady)) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center justify-center gap-2 px-3 py-12">
+        <p className="text-sm text-stone-500">Завантаження…</p>
+      </main>
+    );
+  }
+
+  if (!session) {
+    return <PreAuthHero />;
+  }
+
+  if (!onboardingDone) {
+    return <OnboardingFlow onComplete={completeOnboarding} />;
+  }
+
   return (
     <main className="mx-auto flex min-h-screen min-h-0 w-full max-w-[1800px] flex-col gap-5 px-2 py-6 sm:gap-8 sm:px-4 sm:py-10 lg:px-5">
       <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -215,15 +265,7 @@ function HomeContent() {
           <span className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
             ЛІЛА · LEELA
           </span>
-          <h1 className="font-display text-2xl text-stone-800 sm:text-4xl">Гра Самопізнання</h1>
-          <p className="max-w-[min(100%,42rem)] text-xs text-stone-500 sm:text-sm">
-            Настільна гра для самопізнання та розвитку через усвідомлені рішення
-          </p>
-          {state.fixedPlayerRequest && state.phase !== "entry" && (
-            <p className="max-w-xl text-sm font-medium leading-snug text-stone-700">
-              Запит: {state.fixedPlayerRequest}
-            </p>
-          )}
+          <h1 className="font-display text-2xl text-stone-800 sm:text-4xl">Гра Ліла онлайн</h1>
         </header>
         <div className="flex shrink-0 justify-end sm:pt-1">
           <AppHeader />
@@ -242,6 +284,14 @@ function HomeContent() {
       ) : (
         <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 lg:h-[calc(100dvh-190px)] lg:grid-cols-[7fr_3fr] lg:items-stretch lg:gap-5">
           <div className="flex min-h-0 min-w-0 flex-col">
+            {state.fixedPlayerRequest && (
+              <section className="mb-3 rounded-2xl border border-amber-200/70 bg-amber-50/65 px-4 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-800/90">
+                  Твій запит
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-stone-700">{state.fixedPlayerRequest}</p>
+              </section>
+            )}
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               <GameBoard position={state.position} />
             </div>
@@ -256,6 +306,39 @@ function HomeContent() {
             />
           </div>
         </div>
+      )}
+
+      {state.phase !== "entry" && (
+        <section className="rounded-3xl border border-white/45 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.32)] backdrop-blur-xl sm:p-6">
+          <h2 className="font-display text-2xl text-stone-800 sm:text-3xl">Поширені питання</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+              <h3 className="text-sm font-semibold text-stone-800">Що таке гра Ліла?</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                Це простір для уважного дослідження запиту через гру, діалог і рух по дошці.
+              </p>
+            </article>
+            <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+              <h3 className="text-sm font-semibold text-stone-800">Навіщо формулювати запит перед входом?</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                Чим точніше й чесніше сформульований запит, тим глибше та ясніше може пройти гра.
+              </p>
+            </article>
+            <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+              <h3 className="text-sm font-semibold text-stone-800">Що означає, якщо не випадає 6?</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                Це означає, що запит ще уточнюється. Провідник допомагає побачити його ясніше.
+              </p>
+            </article>
+            <article className="rounded-2xl border border-stone-200/70 bg-white/70 p-3">
+              <h3 className="text-sm font-semibold text-stone-800">Що робити під час гри?</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                Слідкуй за ходом, кидай кубик, відповідай на питання провідника і спостерігай за тим, як
+                розкривається твій процес.
+              </p>
+            </article>
+          </div>
+        </section>
       )}
 
       <footer className="pb-1 text-center text-[10px] tracking-wide text-stone-400 sm:pb-2 sm:text-[11px]">

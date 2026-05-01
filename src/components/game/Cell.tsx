@@ -88,11 +88,11 @@ function CellBase({ cell, isActive }: Props) {
   const cellClass = useMemo(
     () =>
       [
-        "group relative aspect-square select-none rounded-xl border backdrop-blur-sm transition-all duration-300 sm:rounded-2xl",
+        "group relative aspect-square select-none rounded-xl border transition-all duration-300 sm:rounded-2xl",
         "flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-center sm:gap-1 sm:px-1.5 sm:py-1.5",
         isActive
-          ? "z-[1] scale-[1.04] border-amber-300/85 bg-white/40 shadow-[0_10px_28px_-10px_rgba(212,165,116,0.55)] ring-2 ring-amber-300/75"
-          : "border-white/35 bg-white/28 shadow-[0_8px_24px_-14px_rgba(12,24,42,0.45)] hover:border-white/50 hover:bg-white/35",
+          ? "z-[3] scale-[1.04] border-amber-300/85 bg-white/30 shadow-[0_10px_28px_-10px_rgba(212,165,116,0.55)] ring-2 ring-amber-300/75"
+          : "z-[2] border-white/35 bg-white/16 shadow-[0_8px_24px_-14px_rgba(12,24,42,0.45)] hover:border-white/45 hover:bg-white/24",
         isGoal && !isActive
           ? "border-amber-300/70 bg-gradient-to-br from-amber-300/40 to-amber-500/22"
           : "",
@@ -111,7 +111,7 @@ function CellBase({ cell, isActive }: Props) {
       >
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-black/12 via-black/10 to-black/18"
+          className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-black/6 via-black/5 to-black/10"
         />
 
         <span className="absolute left-1.5 top-1 z-[1] font-mono text-[10px] tracking-tight text-white/65 drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">
