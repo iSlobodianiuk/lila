@@ -4,15 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { GOAL_CELL, getCell } from "@/lib/board-data";
 import { CELL_DESCRIPTIONS } from "@/src/data/cellDescriptions";
-import type { GameState } from "@/lib/types";
+import type { ChatMessage, GameState } from "@/lib/types";
 import { Dice } from "@/components/dice";
+
+type AppendChatPayload = Omit<ChatMessage, "id" | "createdAt"> & { createdAt?: string };
 
 type Props = {
   state: GameState;
   onRoll: () => void;
   onReset: () => void;
   onQueryChange: (query: string) => void;
-  onAppendMessage: (msg: { role: "user" | "assistant"; content: string; kind?: "cell"; cellId?: number }) => void;
+  onAppendMessage: (msg: AppendChatPayload) => void;
 };
 
 export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessage }: Props) {
