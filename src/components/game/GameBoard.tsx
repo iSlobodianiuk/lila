@@ -352,7 +352,10 @@ export function GameBoard({ position }: Props) {
   return (
     <section className="relative flex h-full min-h-0 select-none flex-col rounded-3xl border border-white/40 bg-white/40 p-1 shadow-[0_24px_60px_-30px_rgba(120,90,60,0.35)] backdrop-blur-xl sm:p-2">
       <div className="mb-2 flex items-center justify-between px-1 sm:mb-3 sm:px-0">
-        <p className="text-[11px] text-stone-500 sm:text-xs">Жест: pinch/drag для навігації дошкою</p>
+        <p className="text-[11px] text-stone-500 sm:text-xs">
+          <span className="hidden md:inline">Перетягни дошку · коліщатко — масштаб</span>
+          <span className="md:hidden">Жест: pinch/drag для навігації дошкою</span>
+        </p>
         <div className="flex items-center gap-1">
           <button
             type="button"

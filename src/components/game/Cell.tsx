@@ -155,7 +155,7 @@ function CellBase({ cell, isActive }: Props) {
           </span>
         )}
 
-        <span className="relative z-[1] mt-1.5 line-clamp-2 px-1 text-[10px] font-semibold leading-[1.2] text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.85)] sm:text-[11px] md:text-[12px]">
+        <span className="relative z-[1] mt-1.5 line-clamp-2 px-1 text-[10px] font-semibold leading-[1.2] text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.85)] sm:text-[11px] md:text-[12px] lg:text-[13px]">
           {cell.name}
         </span>
         <span className="relative z-[1] hidden px-1 text-[9px] italic leading-none text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] md:block">

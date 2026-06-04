@@ -283,14 +283,14 @@ function HomeContent() {
           onAppendMessage={appendChatMessage}
         />
       ) : (
-        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 md:h-full md:grid-cols-[7fr_3fr] md:items-stretch md:gap-4 lg:grid-cols-[7.2fr_2.8fr]">
+        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 md:h-full md:grid-cols-[6fr_4fr] md:items-stretch md:gap-4 lg:grid-cols-[6fr_minmax(360px,4fr)]">
           <div className="flex min-h-0 min-w-0 flex-col">
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               <GameBoard position={state.position} />
             </div>
           </div>
           <div className="flex min-h-0 min-w-0 flex-col">
-            <div className="mb-3 hidden rounded-2xl border border-white/45 bg-white/60 p-1 shadow-[0_16px_40px_-28px_rgba(120,90,60,0.45)] backdrop-blur-xl md:inline-flex">
+            <div className="mb-3 inline-flex rounded-2xl border border-white/45 bg-white/60 p-1 shadow-[0_16px_40px_-28px_rgba(120,90,60,0.45)] backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => setDesktopPanelTab("chat")}

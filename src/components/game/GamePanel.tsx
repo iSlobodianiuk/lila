@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { GOAL_CELL, getCell } from "@/lib/board-data";
+import { getGameStepHint, getGuideChatEmptyHint } from "@/lib/game-step-hint";
 import type { ChatMessage, GameState } from "@/lib/types";
 import { Dice } from "@/components/dice";
 import { getGuideResponse } from "@/src/app/actions/guide";
@@ -26,6 +27,7 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
   );
   const introSentRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const cell = state.position > 0 ? getCell(state.position) : null;
 
   useEffect(() => {
@@ -119,16 +121,28 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
     latestAssistantCellIndex > latestUserIndex &&
     state.phase !== "finished";
 
-  const hint =
-    state.phase === "finished"
-      ? "Гру завершено. Можеш завершити діалог або почати нову сесію."
-      : "Кинь кубик, щоб зробити наступний крок.";
-
-  const diceDisabled = state.phase === "finished" || state.position >= GOAL_CELL || needsUserReply;
+  const stepHint = getGameStepHint(state, { needsUserReply, guideLoading });
+  const diceDisabled =
+    guideLoading ||
+    state.phase === "finished" ||
+    state.position >= GOAL_CELL ||
+    needsUserReply;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, state.isRolling, guideLoading, showFinalLoading]);
+  }, [messages, state.isRolling, guideLoading, showFinalLoading, needsUserReply]);
+
+  useEffect(() => {
+    if (!needsUserReply) return;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "end",
+    });
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      chatInputRef.current?.focus({ preventScroll: true });
+    }
+  }, [needsUserReply, latestAssistantCellIndex]);
 
   const handleSend = async () => {
     const message = draftMessage.trim();
@@ -142,28 +156,15 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
       kind: state.phase === "playing" || state.phase === "finished" ? "cell" : "entry",
       cellId: state.position > 0 ? state.position : undefined,
     });
-    onQueryChange(message);
+    if (state.phase === "entry") {
+      onQueryChange(message);
+    }
     setDraftMessage("");
     await requestGuideReply(nextMessages, state.phase === "entry" ? "entry" : "cell");
   };
 
   return (
-    <aside className="grid h-full min-h-0 grid-rows-[auto_1fr] gap-4 sm:gap-5">
-      <section className="rounded-3xl border border-white/40 bg-white/60 p-4 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:p-5">
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-stone-800">Крок гри</h3>
-          <p className="text-xs text-stone-500">Кинь кубик, щоб зробити наступний крок</p>
-        </div>
-        <Dice
-          value={state.lastRoll}
-          isRolling={state.isRolling}
-          onRoll={onRoll}
-          label="Кинути кубик"
-          hint={needsUserReply ? "Спочатку дай відповідь провіднику в чаті" : hint}
-          disabled={diceDisabled}
-        />
-      </section>
-
+    <aside className="grid h-full min-h-0 grid-rows-[1fr_auto] gap-3 sm:gap-4">
       <section className="grid min-h-0 grid-rows-[auto_1fr_auto] overflow-hidden rounded-3xl border border-white/40 bg-white/60 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl">
         <header className="flex items-center justify-between border-b border-stone-200/70 px-4 py-3 sm:px-5">
           <div>
@@ -175,10 +176,10 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
           </span>
         </header>
 
-        <div className="min-h-0 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="min-h-0 space-y-3 overflow-y-auto px-4 py-4 sm:min-h-[200px] sm:px-5 md:min-h-[32vh]">
           {messages.length === 0 && (
             <p className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/80 px-3 py-2 text-sm text-stone-500">
-              Поки що немає повідомлень. Кинь кубик, щоб почати діалог на полі.
+              {getGuideChatEmptyHint(guideLoading)}
             </p>
           )}
 
@@ -235,16 +236,26 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
         </div>
 
         <div className="border-t border-stone-200/70 px-4 py-3 sm:px-5">
+          {needsUserReply && (
+            <p
+              role="status"
+              className="mb-2 rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950"
+            >
+              Спочатку відповідь провіднику ↓
+            </p>
+          )}
           <div className="mb-2 flex items-center justify-between text-xs text-stone-500">
             <span>
               Клітинка: <span className="font-semibold text-stone-700">{cell ? `${cell.id}` : "—"}</span>
             </span>
             <span>
-              Кидків: <span className="font-semibold text-stone-700">{state.rollHistory.length}</span>
+              Кидків на полі:{" "}
+              <span className="font-semibold text-stone-700">{state.rollHistory.length}</span>
             </span>
           </div>
           <div className="flex items-end gap-2">
             <textarea
+              ref={chatInputRef}
               value={draftMessage}
               onChange={(event) => setDraftMessage(event.target.value)}
               placeholder="Напиши відповідь провіднику…"
@@ -252,14 +263,14 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  handleSend();
+                  void handleSend();
                 }
               }}
             />
             <button
               type="button"
-              onClick={handleSend}
-              disabled={!draftMessage.trim()}
+              onClick={() => void handleSend()}
+              disabled={!draftMessage.trim() || guideLoading}
               className="min-h-11 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Надіслати
@@ -275,6 +286,18 @@ export function GamePanel({ state, onRoll, onReset, onQueryChange, onAppendMessa
             Почати спочатку
           </button>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/40 bg-white/60 p-3 shadow-[0_20px_50px_-30px_rgba(120,90,60,0.4)] backdrop-blur-xl sm:p-4">
+        <h3 className="mb-2 text-center text-sm font-semibold text-stone-800">Крок гри</h3>
+        <Dice
+          value={state.lastRoll}
+          isRolling={state.isRolling}
+          onRoll={onRoll}
+          label="Кинути кубик"
+          hint={stepHint}
+          disabled={diceDisabled}
+        />
       </section>
     </aside>
   );

@@ -179,6 +179,7 @@ export function useLeelaGame(options?: UseLeelaGameOptions) {
         entryPendingStart: false,
         fixedPlayerRequest: request,
         position: newPosition,
+        lastRoll: null,
         lastTransition: transition,
         gameHistory: [...prev.gameHistory, first],
         completionSynced: false,

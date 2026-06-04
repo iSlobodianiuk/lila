@@ -20,14 +20,18 @@ function DiceFace({ value }: { value: number }) {
         return (
           <div
             key={idx}
-            className={
-              has
-                ? "rounded-full bg-stone-700 shadow-inner"
-                : ""
-            }
+            className={has ? "rounded-full bg-stone-700 shadow-inner" : ""}
           />
         );
       })}
+    </div>
+  );
+}
+
+function DiceFaceEmpty() {
+  return (
+    <div className="flex h-full w-full items-center justify-center" aria-hidden>
+      <span className="text-2xl font-light text-stone-300 sm:text-3xl">?</span>
     </div>
   );
 }
@@ -41,35 +45,51 @@ type Props = {
   disabled?: boolean;
 };
 
+const DICE_BUTTON_BASE =
+  "relative h-20 w-20 rounded-2xl border border-white/60 bg-gradient-to-br from-white to-stone-50 sm:h-24 sm:w-24 shadow-[0_12px_30px_-10px_rgba(120,90,60,0.45)] transition-all duration-300";
+
+const DICE_BUTTON_ENABLED =
+  "hover:scale-[1.03] hover:shadow-[0_16px_36px_-10px_rgba(120,90,60,0.55)]";
+
+const DICE_BUTTON_DISABLED =
+  "cursor-not-allowed opacity-45 grayscale hover:scale-100 hover:shadow-[0_12px_30px_-10px_rgba(120,90,60,0.45)]";
+
 export function Dice({ value, isRolling, onRoll, label, hint, disabled }: Props) {
-  const display = value ?? 6;
+  const isDisabled = Boolean(disabled || isRolling);
+  const showFace = value != null;
+
   return (
     <div className="flex flex-col items-center gap-2.5 sm:gap-3">
       <button
         type="button"
         onClick={onRoll}
-        disabled={disabled || isRolling}
+        disabled={isDisabled}
         aria-label="Кинути кубик"
+        aria-disabled={isDisabled}
         className={[
-          "relative h-20 w-20 rounded-2xl border border-white/60 bg-gradient-to-br from-white to-stone-50 sm:h-24 sm:w-24",
-          "shadow-[0_12px_30px_-10px_rgba(120,90,60,0.45)] transition-all duration-300",
-          "hover:scale-[1.03] hover:shadow-[0_16px_36px_-10px_rgba(120,90,60,0.55)]",
-          "disabled:cursor-not-allowed disabled:opacity-90",
+          DICE_BUTTON_BASE,
+          isDisabled ? DICE_BUTTON_DISABLED : DICE_BUTTON_ENABLED,
           isRolling ? "animate-dice-roll" : "",
         ].join(" ")}
       >
-        <DiceFace value={display} />
+        {showFace ? <DiceFace value={value} /> : <DiceFaceEmpty />}
       </button>
       <button
         type="button"
         onClick={onRoll}
-        disabled={disabled || isRolling}
-        className="min-h-10 rounded-full bg-stone-900/90 px-4 py-2 text-xs font-medium tracking-wide text-stone-50 shadow-md transition hover:bg-stone-900 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
+        disabled={isDisabled}
+        aria-disabled={isDisabled}
+        className={[
+          "min-h-10 rounded-full px-4 py-2 text-xs font-medium tracking-wide shadow-md transition sm:px-5 sm:text-sm",
+          isDisabled
+            ? "cursor-not-allowed bg-stone-400 text-stone-100"
+            : "bg-stone-900/90 text-stone-50 hover:bg-stone-900",
+        ].join(" ")}
       >
         {isRolling ? "Кидаємо…" : label}
       </button>
       {hint && (
-        <p className="max-w-[14rem] text-center text-[11px] leading-snug text-stone-500 sm:text-xs">
+        <p className="max-w-[16rem] text-center text-[11px] leading-snug text-stone-500 sm:text-xs">
           {hint}
         </p>
       )}
